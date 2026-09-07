@@ -145,6 +145,11 @@ The most easily broken part of this system. Three rules, no exceptions.
    venue in every timezone. They are written once and never recomputed: if a venue's timezone is
    edited later, existing bookings keep the instants they were made with (I-9).
 
+   Every instant the system stores or compares — `start_utc`, `end_utc`, `hold_expires_at` — is
+   **naive UTC**, produced by `utils.timezone.utc_now()` / `to_utc()`. Frappe's own
+   `now_datetime()` returns the *site's* timezone, so mixing the two puts two different clocks in
+   one column. Nothing in this app calls `now_datetime()`.
+
 3. **DST is documented, not solved.** When a venue's local date has a DST transition, the
    availability generator skips slots whose local time does not exist that day, and for an
    ambiguous (repeated) local hour it takes the **first** occurrence (`fold=0`). Stated here so

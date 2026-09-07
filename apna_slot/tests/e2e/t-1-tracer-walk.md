@@ -26,11 +26,13 @@ export AGENT_BROWSER_SESSION="$(agent-browser session id --scope worktree --pref
 
 | # | Step | Assertion | Step |
 |---|---|---|---|
-| 10 | Sign up as `raj@example.com`, open the venue page | the day grid shows exactly 4 slots for tomorrow, each at AED 250 | T-d |
-| 11 | Pick 19:00 | checkout shows one line, a 10-minute countdown | T-d |
-| 12 | Mock pay → **Succeed** | booking is `Confirmed` | T-e |
-| 13 | Open **My Bookings** | the booking is listed | T-f |
-| 14 | Reload the grid | 19:00 reads **Booked** | T-d |
+| 10 | As a guest, open the venue from the home list | the day grid shows exactly 4 slots for tomorrow, each at AED 250 | T-d |
+| 11 | Click a slot while signed out | redirected to `/login?redirect=/venues/...` | T-d |
+| 12 | Sign up as `raj@example.com`, return, pick 19:00 | checkout shows one line, AED 250, and a countdown starting at 10:00 | T-d |
+| 13 | In a second browser, open the same venue | 19:00 reads **Booked** and is disabled — a hold is never revealed as a hold | T-d |
+| 14 | In that second browser, POST `booking.create` for 19:00 | HTTP **409**, message "19:00 on 8 Sep is no longer available. Pick another slot." | T-d |
+| 15 | Mock pay → **Succeed** | booking is `Confirmed` | T-e |
+| 16 | Open **My Bookings** | the booking is listed | T-f |
 
 ## Every run also checks
 
@@ -41,4 +43,7 @@ export AGENT_BROWSER_SESSION="$(agent-browser session id --scope worktree --pref
   then **wait for the transition to settle** before the screenshot — the theme change is animated
   and an immediate shot catches unreadable mid-transition colours.
 - **375px.** `agent-browser set viewport 375 800`; `scrollWidth === clientWidth` on every screen.
-- **Console.** `agent-browser console` is empty.
+- **Console.** `agent-browser console` shows no errors. frappe-ui logs
+  `Error parsing error response` when vueuse aborts a superseded request; check
+  `agent-browser network requests` before chasing it — every request returning 200 means the log is
+  the library's abort handler, not a failure.

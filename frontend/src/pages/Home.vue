@@ -3,20 +3,13 @@ import { Button, LoadingText, useCall } from 'frappe-ui'
 import { useRouter } from 'vue-router'
 
 import PublicLayout from '../layouts/PublicLayout.vue'
+import { money } from '../lib/format'
 import { session } from '../session'
 
 const router = useRouter()
 const venues = useCall({
   url: '/api/v2/method/apna_slot.api.discovery.search_venues',
 })
-
-function money(amount, currency) {
-  return new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
 </script>
 
 <template>
@@ -39,10 +32,11 @@ function money(amount, currency) {
       </p>
 
       <div v-else class="grid gap-3 sm:grid-cols-2">
-        <article
+        <router-link
           v-for="venue in venues.data"
           :key="venue.slug"
-          class="flex flex-col gap-1 rounded border border-outline-gray-1 bg-surface-white p-4"
+          :to="`/venues/${venue.slug}`"
+          class="flex flex-col gap-1 rounded border border-outline-gray-1 bg-surface-white p-4 hover:border-outline-gray-3"
         >
           <h2 class="text-p-base font-medium text-ink-gray-8">{{ venue.venue_name }}</h2>
           <p class="text-p-sm text-ink-gray-5">{{ venue.city }}, {{ venue.country }}</p>
@@ -51,7 +45,7 @@ function money(amount, currency) {
             {{ venue.resource_count }}
             {{ venue.resource_count === 1 ? 'resource' : 'resources' }}
           </p>
-        </article>
+        </router-link>
       </div>
     </div>
   </PublicLayout>

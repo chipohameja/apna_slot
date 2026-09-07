@@ -5,9 +5,9 @@ every phase. If this file and the code disagree, the code is right and this file
 
 **Status legend:** ☐ not started · ◐ in progress · ☑ done (tests + E2E green) · ⊘ deferred
 
-Last updated: 2026-09-07 · Phase T steps T-a, T-b and T-c done. R3 and R4 settled. Inventory
-exists and publishes: a publisher lists a venue with one resource, publishes it, and a guest sees
-it on the public list through `api.discovery` alone (D-34).
+Last updated: 2026-09-07 · Phase T steps T-a to T-d done. **R1, R2, R3 and R4 settled.** The
+ledger holds: a customer books a slot through the SPA, the hold blocks everyone else, and two
+concurrent connections racing for one slot leave exactly one booking and one ledger row.
 
 ---
 
@@ -33,8 +33,8 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 
 | Bet | Claim | Test | Status |
 |---|---|---|---|
-| R1 | The unique index is a sufficient double-booking guarantee | `test_concurrent_booking_same_slot_one_wins` | ☐ |
-| R2 | Wall-clock + denormalised UTC round-trips through `ZoneInfo` | `test_line_utc_matches_venue_timezone` | ☐ |
+| R1 | The unique index is a sufficient double-booking guarantee | `test_concurrent_booking_same_slot_one_wins` | ☑ two connections, both past the pre-check; dropping the index turns the test red with two winners |
+| R2 | Wall-clock + denormalised UTC round-trips through `ZoneInfo` | `test_line_utc_matches_venue_timezone` | ☑ Dubai 19:00 → 15:00Z, Kolkata 19:00 → 13:30Z, on a site running `Africa/Kigali` |
 | R3 | Permission hooks isolate tenants and fail closed | `test_query_conditions_fail_closed_for_non_member` | ☑ also proven on `Venue`: list, document read, and creating a resource under another tenant's venue |
 | R4 | Hand-scaffolded frappe-ui SPA builds, serves, authenticates on cookies | E2E journey T-1 | ☑ builds, serves, and authenticates on cookies; no console errors, light and dark, 375px |
 | R5 | Gateway interface + signed callback drives the state machine | `test_callback_confirms_booking` | ☐ |
@@ -49,7 +49,7 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 | T-a | `hooks.py`, two modules, `www/apnaslot.py`, route rules, Vite + Tailwind + frappe-ui scaffold serving one page | ☑ |
 | T-b | `Publisher` + `Publisher Member`, `permissions.py`, signup/session APIs, login + signup + onboarding screens | ☑ |
 | T-c | `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, `api.discovery.search_venues`, publisher venue list + bare create form, public list | ☑ |
-| T-d | `Booking Slot` + unique-index patch, `Booking` + `Booking Line`, `AvailabilityGrid`, `PriceResolver`, `create_booking`, day-grid screen | ☐ |
+| T-d | `Booking Slot` + unique-index patch, `Booking` + `Booking Line`, `AvailabilityGrid`, `PriceResolver`, `create_booking`, `get_venue`, venue page with day grid, checkout shell | ☑ |
 | T-e | Gateway ABC, `MockGateway`, `Payment Transaction`, start/callback, checkout + mock-pay screens, `confirm_booking` | ☐ |
 | T-f | `expire_pending_bookings`, `release_booking`, My Bookings | ☐ |
 | T-x | `tests/test_tracer.py` green; E2E journeys T-1, T-2, T-3 pass | ☐ |
@@ -141,7 +141,7 @@ that introduces it is done.
 
 | Invariant | Introduced | Test | Status |
 |---|---|---|---|
-| I-1 Exclusivity | T | `test_concurrent_booking_same_slot_one_wins` | ☐ |
+| I-1 Exclusivity | T | `test_concurrent_booking_same_slot_one_wins` | ☑ |
 | I-2 Ledger correspondence | T | `test_expiry_job_releases_hold`, `test_completion_keeps_ledger_rows` | ☐ |
 | I-3 Booking shape | 3 | `test_duplicate_line_in_request_rejected`, cap tests | ☐ |
 | I-4 Schedule containment | 3 | `test_grid_marks_closed_whole_day` | ☐ |
@@ -149,7 +149,7 @@ that introduces it is done.
 | I-6 Price snapshot | 2 | `test_price_edit_does_not_alter_existing_booking` | ☐ |
 | I-7 Post-confirmation immutability | 3 | `test_confirmed_booking_lines_immutable` | ☐ |
 | I-8 Tenant isolation | T | `test_query_conditions_fail_closed_for_non_member` | ☑ |
-| I-9 Snapshot immutability | T | `test_line_utc_matches_venue_timezone` | ☐ |
+| I-9 Snapshot immutability | T | `test_line_utc_matches_venue_timezone` | ☑ |
 | I-10 Money reconciliation | 4 | `test_success_confirms_and_snapshots_commission` | ☐ |
 
 ---
@@ -203,3 +203,20 @@ Things learned while building that the phase documents now record.
   action, and "ValidationError:" is neither.
 - **T-c.** Tests must not assume an empty site. Two slug assertions passed alone and failed after
   the E2E walk created venues of the same name; they now derive their own unique name.
+- **T-d.** *The tracer's biggest find.* The first race never reached the unique index: both threads
+  collided on Frappe's `tabSeries` naming counter, which is held with `SELECT … FOR UPDATE` until
+  the transaction ends. Any two Bookings created in the same instant contend there — different
+  venues included. `claim()` now retries transient lock errors only. See
+  [phase-3-booking-engine.md](./phase-3-booking-engine.md) §4.
+- **T-d.** A `frappe.db.savepoint()` name is interpolated straight into SQL, so
+  `frappe.generate_hash()` fails intermittently — roughly one name in three starts with a digit and
+  is not a valid identifier. Frappe's own helper samples ASCII letters for exactly this reason.
+- **T-d.** `raise SlotUnavailableError(...)` sends the browser the class name and nothing else;
+  only `frappe.throw` puts a message in the response envelope. The customer-facing text now goes
+  through `exceptions.refuse_slots()`, which also clears Frappe's internal "must be unique"
+  message first.
+- **T-d.** A `useCall` with `refetch: true` over params that start out null fires one doomed
+  request per page visit. Drive a dependent call from an explicit `watch` instead.
+- **T-d.** `frappe.utils.now_datetime()` is the *site's* timezone (`Africa/Kigali` here), not UTC.
+  Every instant this app writes comes from `utils.timezone.utc_now()`; the mismatch would have been
+  invisible on a UTC site.

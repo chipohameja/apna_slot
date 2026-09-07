@@ -16,11 +16,15 @@ permission_query_conditions = {
 	"Publisher": "apna_slot.permissions.publisher_query",
 	"Venue": "apna_slot.permissions.tenant_query",
 	"Bookable Resource": "apna_slot.permissions.tenant_query",
+	"Booking Slot": "apna_slot.permissions.tenant_query",
+	"Booking": "apna_slot.permissions.booking_query",
 }
 has_permission = {
 	"Publisher": "apna_slot.permissions.publisher_has_permission",
 	"Venue": "apna_slot.permissions.tenant_has_permission",
 	"Bookable Resource": "apna_slot.permissions.tenant_has_permission",
+	"Booking Slot": "apna_slot.permissions.tenant_has_permission",
+	"Booking": "apna_slot.permissions.booking_has_permission",
 }
 
 # --- Fixtures ----------------------------------------------------------

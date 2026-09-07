@@ -181,8 +181,13 @@ Each step is committed separately and leaves the app runnable.
    publisher, so both ends of D-34 ship together. `get_venue` waits for T-d, which owns the venue
    page it serves.
 4. **T-d — The ledger.** `Booking Slot` + the unique-index patch, `Booking` + `Booking Line`,
-   `AvailabilityGrid.for_date`, `PriceResolver`, `create_booking`, the day grid screen.
-   *Proves R1 and R2.* **This is the step the whole phase exists for.**
+   `AvailabilityGrid.for_date`, `PriceResolver`, `create_booking`, `api.discovery.get_venue`, the
+   venue page with its day grid, and the checkout screen as a **shell** — the hold, its lines and
+   its countdown, with no payment in it. *Proves R1 and R2.* **This is the step the whole phase
+   exists for.**
+
+   The shell is not a placeholder: creating a hold with nowhere to land would be, and T-e adds the
+   gateway to this page rather than replacing it.
 5. **T-e — Money.** Gateway ABC, `MockGateway`, `Payment Transaction`, start/callback, the checkout
    and mock-pay screens, `confirm_booking`. *Proves R5.*
 6. **T-f — The timer.** `expire_pending_bookings`, `release_booking`, My Bookings. *Proves R6.*

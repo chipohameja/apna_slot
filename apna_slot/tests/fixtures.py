@@ -1,3 +1,6 @@
+import threading
+from dataclasses import dataclass
+
 import frappe
 
 from apna_slot.api.auth import sign_up
@@ -78,3 +81,74 @@ def every_day(opens_at: str, closes_at: str) -> list[dict]:
 			"Sunday",
 		)
 	]
+
+
+@dataclass
+class Arena:
+	"""A committed publisher/venue/resource, for tests that need a second connection to see it."""
+
+	publisher: str
+	venue: str
+	resource: str
+	users: list[str]
+
+
+def in_own_connection(work):
+	"""Run `work` on its own connection. Committing on the test's connection would commit
+	every row the tests before it created, which then outlive the suite."""
+	site = frappe.local.site
+	outcome = {}
+
+	def run():
+		frappe.init(site=site)
+		frappe.connect()
+		try:
+			outcome["value"] = work()
+			frappe.db.commit()
+		except Exception as failure:
+			frappe.db.rollback()
+			outcome["error"] = failure
+		finally:
+			frappe.destroy()
+
+	thread = threading.Thread(target=run)
+	thread.start()
+	thread.join(timeout=120)
+	if "error" in outcome:
+		raise outcome["error"]
+	return outcome.get("value")
+
+
+def make_committed_arena(prefix: str, customers: int = 2) -> Arena:
+	"""A publisher, venue and resource visible to other connections — what a race needs."""
+	return in_own_connection(lambda: _build_arena(prefix, customers))
+
+
+def drop_committed_arena(arena: Arena) -> None:
+	in_own_connection(lambda: _drop_arena(arena))
+
+
+def _build_arena(prefix: str, customers: int) -> Arena:
+	owner = make_customer(f"{prefix}.owner@example.com", "Ola Owner")
+	publisher = make_publisher(owner, f"Tracer {prefix} Publisher")
+	venue = make_venue(publisher, f"Tracer {prefix} Arena")
+	resource = make_resource(venue)
+	users = [owner] + [make_customer(f"{prefix}.customer{index}@example.com") for index in range(customers)]
+	frappe.set_user("Administrator")
+	return Arena(publisher=publisher, venue=venue, resource=resource, users=users)
+
+
+def _drop_arena(arena: Arena) -> None:
+	frappe.set_user("Administrator")
+	bookings = frappe.get_all("Booking", filters={"resource": arena.resource}, pluck="name")
+	frappe.db.delete("Booking Slot", {"resource": arena.resource})
+	frappe.db.delete("Booking Line", {"parent": ("in", bookings or [""])})
+	frappe.db.delete("Booking", {"resource": arena.resource})
+	for doctype, name in (
+		("Bookable Resource", arena.resource),
+		("Venue", arena.venue),
+		("Publisher", arena.publisher),
+	):
+		frappe.delete_doc(doctype, name, force=True, ignore_permissions=True, delete_permanently=True)
+	for user in arena.users:
+		frappe.delete_doc("User", user, force=True, ignore_permissions=True, delete_permanently=True)

@@ -221,6 +221,18 @@ flowchart TD
 The pre-check at step **C** exists only so that 99.9% of collisions produce a friendly grid refresh
 instead of an exception. **It is not the guarantee.** The guarantee is the index at step **H**.
 
+`BookingRequest.submit()` is the pre-check plus `claim()`; `claim()` is steps **E–J** on their own
+and is public, because a concurrency test that goes through the pre-check is testing the pre-check,
+not the index.
+
+**Transient lock retries.** Phase T found that step **F** contends before step **H** ever runs:
+Frappe takes `SELECT … FOR UPDATE` on the `tabSeries` counter row to name the Booking, and holds it
+for the rest of the transaction. Two customers inserting a Booking in the same instant — for
+*different* venues, even — serialize there, and the loser can surface `QueryDeadlockError` rather
+than waiting. `claim()` therefore retries the whole critical section up to `LOCK_ATTEMPTS` times on
+`QueryDeadlockError` / `QueryTimeoutError` only, rolling back in between. `SlotUnavailableError` is
+never retried: a slot someone else holds is an answer, not a hiccup.
+
 **All-or-nothing across dates.** If any one line of a six-line series collides, the *entire*
 booking rolls back and the error names the conflicting lines. A customer who asked for six
 Saturdays must never silently receive four — the UI's job is to show which dates failed and let
@@ -307,9 +319,12 @@ completes after the last line.
 | `apna_slot.api.booking.list_mine` | no | `status?`, `page?` | customer's bookings, ordered by `first_start_utc` |
 | `apna_slot.api.booking.confirm_internal` | no | `booking` | **Phase 3 only**, `System Manager` only. Deleted in Phase 4. |
 
-On conflict, `create` returns HTTP 409 with
-`{"error": "slots_unavailable", "conflicting_lines": [{"date": "2026-09-19", "start_time": "19:00:00", "reason": "booked"}]}`
-— the UI needs to know *which* dates failed, not just that something did.
+On conflict, `create` returns **HTTP 409**. `SlotUnavailableError` carries
+`conflicting_lines` — `[{"date": "2026-09-19", "start_time": "19:00:00", "reason": "booked"}]` —
+for server-side callers, and is raised with `frappe.throw` so the browser receives a message naming
+the first conflicting slot. Frappe's error envelope has no room for the structured list, so a
+client that needs *which* dates failed refetches the grid; Phase 5's multi-date UI is the first
+caller that needs more than the message, and it is the phase that decides how to carry it.
 
 `create` is rate-limited per user (10/hour) — holds are free to create and block real inventory.
 

@@ -1,18 +1,30 @@
+import threading
+
 import frappe
 from frappe.tests import IntegrationTestCase
+from frappe.utils import add_days, getdate
 
 from apna_slot.api.auth import CUSTOMER_ROLE, get_session_user
 from apna_slot.api.discovery import search_venues
+from apna_slot.availability import get_day_grid
+from apna_slot.booking_engine import BookingRequest, create_booking
+from apna_slot.constants import HOLD_MINUTES
+from apna_slot.exceptions import SlotUnavailableError
+from apna_slot.patches.v1_0.add_booking_slot_unique_index import INDEX_NAME
 from apna_slot.apna_slot_core.doctype.publisher.publisher import PUBLISHER_ROLE
 from apna_slot.permissions import clear_publisher_cache, publisher_query
 from apna_slot.tests.fixtures import (
+	drop_committed_arena,
 	every_day,
+	make_committed_arena,
 	make_customer,
 	make_publisher,
 	make_resource,
 	make_venue,
 )
 from apna_slot.utils.roles import grant_role
+from apna_slot.utils.slots import to_time
+from apna_slot.utils.timezone import utc_now
 
 
 class TestTracer(IntegrationTestCase):
@@ -232,6 +244,142 @@ class TestTracer(IntegrationTestCase):
 		row = next(row for row in search_venues() if row["slug"] == "priced-arena")
 		self.assertEqual((row["from_price"], row["resource_count"]), (180, 2))
 
+	def test_unique_index_exists(self):
+		"""R1: the guarantee is the index. If the patch was skipped, say so loudly."""
+		rows = frappe.db.sql(
+			"""select 1 from information_schema.statistics
+			where table_schema = database() and table_name = 'tabBooking Slot' and index_name = %s""",
+			INDEX_NAME,
+		)
+		self.assertTrue(rows, "the Booking Slot unique index is missing")
+
+	def test_grid_generation_counts_slots(self):
+		resource = self._arena("grid")
+
+		slots = get_day_grid(resource, self._tomorrow())
+
+		self.assertEqual(len(slots), 4)
+		self.assertEqual(slots[0]["start_time"], "18:00:00")
+		self.assertEqual(slots[-1]["end_time"], "22:00:00")
+		self.assertEqual({slot["price"] for slot in slots}, {250.0})
+
+	def test_grid_marks_booked_from_ledger(self):
+		"""A held slot reads `booked` to everyone but its owner — never `held`."""
+		resource = self._arena("held")
+		day = self._tomorrow()
+		customer = make_customer("holder.tracer@example.com", "Hal Holder")
+		create_booking(resource, day, "19:00:00", customer=customer)
+
+		frappe.set_user(make_customer("looker.tracer@example.com", "Lou Looker"))
+		statuses = {slot["start_time"]: slot["status"] for slot in get_day_grid(resource, day)}
+
+		self.assertEqual(statuses["19:00:00"], "booked")
+		self.assertEqual(statuses["20:00:00"], "available")
+
+	def test_booking_holds_one_slot_for_ten_minutes(self):
+		resource = self._arena("hold")
+		day = self._tomorrow()
+		customer = make_customer("hold.tracer@example.com", "Hana Hold")
+
+		receipt = create_booking(resource, day, "19:00:00", customer=customer)
+
+		booking = frappe.get_doc("Booking", receipt["booking"])
+		self.assertEqual((booking.status, booking.line_count, booking.active_line_count), ("Pending Payment", 1, 1))
+		self.assertEqual(booking.total_amount, 250.0)
+		self.assertEqual(frappe.db.count("Booking Slot", {"booking": booking.name}), 1)
+		held_for = (booking.hold_expires_at - utc_now()).total_seconds() / 60
+		self.assertAlmostEqual(held_for, HOLD_MINUTES, delta=1)
+
+	def test_line_utc_matches_venue_timezone(self):
+		"""R2/I-9: the same wall clock in two venues is two different instants."""
+		owner = make_customer("zones.tracer@example.com", "Zaid Zones")
+		publisher = make_publisher(owner, "Tracer Zones Publisher")
+		customer = make_customer("traveller.tracer@example.com", "Tia Traveller")
+		day = self._tomorrow()
+
+		instants = {
+			timezone: self._book_at_seven(publisher, timezone, day, customer)
+			for timezone in ("Asia/Dubai", "Asia/Kolkata")
+		}
+
+		self.assertEqual(str(instants["Asia/Dubai"]), f"{day} 15:00:00")
+		self.assertEqual(str(instants["Asia/Kolkata"]), f"{day} 13:30:00")
+
+	def test_booking_a_taken_slot_is_refused_with_the_conflict(self):
+		resource = self._arena("taken")
+		day = self._tomorrow()
+		create_booking(resource, day, "19:00:00", customer=make_customer("first.tracer@example.com"))
+
+		with self.assertRaises(SlotUnavailableError) as refusal:
+			create_booking(resource, day, "19:00:00", customer=make_customer("second.tracer@example.com"))
+
+		self.assertEqual(
+			refusal.exception.conflicting_lines,
+			[{"date": str(day), "start_time": "19:00:00", "reason": "booked"}],
+		)
+
+	def test_booking_a_slot_outside_the_schedule_is_refused(self):
+		resource = self._arena("offgrid")
+
+		with self.assertRaises(SlotUnavailableError) as refusal:
+			create_booking(resource, self._tomorrow(), "09:00:00", customer=make_customer("early.tracer@example.com"))
+
+		self.assertEqual(refusal.exception.conflicting_lines[0]["reason"], "off_grid")
+
+	def test_duplicate_ledger_insert_rolls_back_booking(self):
+		"""R1: a collision leaves no orphan Booking behind."""
+		resource = self._arena("orphan")
+		day = self._tomorrow()
+		create_booking(resource, day, "19:00:00", customer=make_customer("keeper.tracer@example.com"))
+		loser = make_customer("loser.tracer@example.com")
+
+		with self.assertRaises(SlotUnavailableError):
+			self._book_past_the_precheck(resource, day, loser)
+
+		self.assertEqual(frappe.db.count("Booking", {"customer": loser}), 0)
+		self.assertEqual(frappe.db.count("Booking Slot", {"resource": resource, "slot_date": day}), 1)
+
+	def test_booking_is_visible_to_its_customer_and_the_publisher_only(self):
+		"""I-8: the ledger is tenant data and the booking is also the customer's own."""
+		resource = self._arena("privacy")
+		owner = frappe.db.get_value("Bookable Resource", resource, "publisher")
+		owner_user = frappe.get_doc("Publisher", owner).members[0].user
+		customer = make_customer("mine.tracer@example.com", "Mia Mine")
+		booking = create_booking(resource, self._tomorrow(), "19:00:00", customer=customer)["booking"]
+
+		self.assertEqual(self._bookings_visible_to(customer), [booking])
+		self.assertEqual(self._bookings_visible_to(owner_user), [booking])
+		self.assertEqual(self._bookings_visible_to(make_customer("nosy.tracer@example.com")), [])
+
+	def _bookings_visible_to(self, user: str) -> list[str]:
+		frappe.set_user(user)
+		visible = [row.name for row in frappe.get_list("Booking")]
+		frappe.set_user("Administrator")
+		return visible
+
+	def _arena(self, prefix: str) -> str:
+		"""A published venue with one resource open 18:00-22:00 at 60 minutes."""
+		owner = make_customer(f"{prefix}.owner.tracer@example.com", "Ola Owner")
+		publisher = make_publisher(owner, f"Tracer {prefix.title()} Publisher")
+		venue = make_venue(publisher, f"Tracer {prefix.title()} Arena")
+		resource = make_resource(venue)
+		self._publish(venue)
+		return resource
+
+	def _tomorrow(self):
+		return getdate(add_days(getdate(), 1))
+
+	def _book_at_seven(self, publisher: str, timezone: str, day, customer: str):
+		frappe.set_user(frappe.get_doc("Publisher", publisher).members[0].user)
+		venue = make_venue(publisher, f"Tracer {timezone} Arena", timezone=timezone)
+		resource = make_resource(venue)
+		booking = create_booking(resource, day, "19:00:00", customer=customer)["booking"]
+		return frappe.get_doc("Booking", booking).lines[0].start_utc
+
+	def _book_past_the_precheck(self, resource: str, day, customer: str):
+		"""`claim` skips the courtesy pre-check, so the index itself has to do the refusing."""
+		return BookingRequest(resource, [(day, to_time("19:00:00"))], customer).claim()
+
 	def _publish(self, venue: str) -> None:
 		document = frappe.get_doc("Venue", venue)
 		document.status = "Published"
@@ -241,3 +389,62 @@ class TestTracer(IntegrationTestCase):
 def unused_venue_name() -> str:
 	"""Slug assertions are exact, so they must not collide with whatever the site already holds."""
 	return f"Tracer Arena {frappe.generate_hash(length=8)}"
+
+
+class TestLedgerRace(IntegrationTestCase):
+	"""R1 lives in its own class on purpose. Frappe rolls a test class back as a unit, so a
+	class that has already written holds naming-series locks its own second connection would
+	then wait on. This class starts clean, which is what lets two real connections race."""
+
+	def test_concurrent_booking_same_slot_one_wins(self):
+		"""**The I-1 test.** Two connections past the pre-check, one slot: the database decides.
+		One booking, one ledger row, one clean refusal."""
+		arena = make_committed_arena("race")
+		self.addCleanup(drop_committed_arena, arena)
+		day = self._tomorrow()
+
+		outcomes = self._race(arena, day)
+
+		frappe.db.rollback()  # this connection reads nothing but its own snapshot until it ends
+		receipts = [outcome for outcome in outcomes if isinstance(outcome, dict)]
+		refusals = [outcome for outcome in outcomes if isinstance(outcome, SlotUnavailableError)]
+		self.assertEqual(len(receipts), 1, f"expected exactly one winner, got {outcomes}")
+		self.assertEqual(len(refusals), 1, f"expected exactly one clean refusal, got {outcomes}")
+		self.assertEqual(frappe.db.count("Booking Slot", {"resource": arena.resource, "slot_date": day}), 1)
+		self.assertEqual(frappe.db.count("Booking", {"resource": arena.resource}), 1)
+
+	def _race(self, arena, day) -> list:
+		outcomes: list = [None, None]
+		gate = threading.Barrier(2)
+		site = frappe.local.site
+		threads = [
+			threading.Thread(target=self._attempt, args=(site, arena, day, outcomes, index, gate))
+			for index in range(2)
+		]
+		for thread in threads:
+			thread.start()
+		for thread in threads:
+			thread.join(timeout=60)
+		return outcomes
+
+	def _tomorrow(self):
+		return getdate(add_days(getdate(), 1))
+
+	def _book_past_the_precheck(self, resource: str, day, customer: str):
+		"""`claim` skips the courtesy pre-check, so the index itself has to do the refusing."""
+		return BookingRequest(resource, [(day, to_time("19:00:00"))], customer).claim()
+
+	def _attempt(self, site, arena, day, outcomes: list, index: int, gate: threading.Barrier) -> None:
+		"""Its own connection — two sequential calls would pass against no guarantee at all.
+		`frappe.local` is thread-local, so the thread bootstraps itself from the site name."""
+		frappe.init(site=site)
+		frappe.connect()
+		try:
+			gate.wait()
+			outcomes[index] = self._book_past_the_precheck(arena.resource, day, arena.users[index + 1])
+			frappe.db.commit()
+		except Exception as refusal:
+			frappe.db.rollback()
+			outcomes[index] = refusal
+		finally:
+			frappe.destroy()

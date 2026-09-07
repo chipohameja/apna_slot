@@ -21,6 +21,17 @@ const routes = [
     meta: { requiresGuest: true },
   },
   {
+    path: '/venues/:slug',
+    name: 'Venue',
+    component: () => import('./pages/VenuePage.vue'),
+  },
+  {
+    path: '/checkout/:booking',
+    name: 'Checkout',
+    component: () => import('./pages/Checkout.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/manage/onboarding',
     name: 'Onboarding',
     component: () => import('./pages/manage/Onboarding.vue'),

@@ -41,13 +41,31 @@ def tenant_has_permission(doc, ptype: str | None = None, user: str | None = None
 	return is_member_of(publisher_of(doc), user)
 
 
+def booking_query(user: str | None = None, doctype: str | None = None) -> str:
+	"""A booking belongs to its customer as well as to the owning publisher (I-8)."""
+	user = user or frappe.session.user
+	tenant = scope_condition("`tabBooking`.publisher", user)
+	if not tenant:
+		return ""
+	own = f"`tabBooking`.customer = {frappe.db.escape(user)}"
+	return own if tenant == "1=0" else f"({tenant} or {own})"
+
+
+def booking_has_permission(doc, ptype: str | None = None, user: str | None = None) -> bool:
+	user = user or frappe.session.user
+	return doc.get("customer") == user or tenant_has_permission(doc, ptype, user)
+
+
 def publisher_of(doc) -> str | None:
-	"""The tenant a document belongs to. Frappe checks create permission before
-	`fetch_from` denormalises `publisher`, so a new child of a venue resolves through it."""
+	"""The tenant a document belongs to. Frappe checks create permission before `fetch_from`
+	denormalises `publisher`, so a new document resolves through whatever link it does carry."""
 	if doc.get("publisher"):
 		return doc.get("publisher")
-	venue = doc.get("venue")
-	return frappe.db.get_value("Venue", venue, "publisher") if venue else None
+	for doctype, fieldname in (("Venue", "venue"), ("Bookable Resource", "resource")):
+		parent = doc.get(fieldname)
+		if parent:
+			return frappe.db.get_value(doctype, parent, "publisher")
+	return None
 
 
 def scope_condition(column: str, user: str | None = None) -> str:

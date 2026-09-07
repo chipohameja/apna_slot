@@ -1,0 +1,93 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-09-07 21:00:00.000000",
+ "description": "The exclusivity ledger. One row per held slot; the unique index on (resource, slot_date, start_time) is the double-booking guarantee.",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "resource",
+  "slot_date",
+  "start_time",
+  "end_time",
+  "booking",
+  "booking_line",
+  "publisher"
+ ],
+ "fields": [
+  {
+   "fieldname": "resource",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Resource",
+   "options": "Bookable Resource",
+   "reqd": 1
+  },
+  {
+   "fieldname": "slot_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Slot Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "start_time",
+   "fieldtype": "Time",
+   "in_list_view": 1,
+   "label": "Start Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "end_time",
+   "fieldtype": "Time",
+   "label": "End Time",
+   "reqd": 1
+  },
+  {
+   "fieldname": "booking",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Booking",
+   "options": "Booking",
+   "reqd": 1
+  },
+  {
+   "description": "The child row name, so one line can be released without touching its siblings",
+   "fieldname": "booking_line",
+   "fieldtype": "Data",
+   "label": "Booking Line",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "resource.publisher",
+   "fieldname": "publisher",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Publisher",
+   "options": "Publisher",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-07 21:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Apna Slot Booking",
+ "name": "Booking Slot",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  },
+  {
+   "read": 1,
+   "role": "Apna Slot Publisher"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

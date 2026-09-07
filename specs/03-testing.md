@@ -30,6 +30,15 @@ proves the screens are wired to the APIs, not that the pricing ladder is correct
 2. **Concurrency tests use two real database connections** — threads each calling `frappe.connect`.
    Stated in Phase 3 and repeated here because it is the single most likely thing to be quietly
    downgraded.
+
+   Two consequences of Frappe's test transaction, both learned the hard way in Phase T:
+   - A test class is rolled back **as a unit**, not per test, so a class that has already written
+     holds naming-series row locks that its own second connection will then wait on until it times
+     out. Concurrency tests live in their **own `IntegrationTestCase` class**, which starts clean.
+   - The fixtures a second connection must see have to be committed, and committing on the *test's*
+     connection commits every row every earlier test created — which then outlives the suite.
+     `tests/fixtures.py` commits on its own connection (`in_own_connection`) and the test registers
+     the matching cleanup.
 3. **Query budgets are asserted, not hoped for.** `test_multi_day_grid_query_budget` and
    `test_quote_query_budget_flat_across_dates` assert *counts*. The batching rules in Phases 2 and 3
    are load-bearing and silently regress otherwise.
