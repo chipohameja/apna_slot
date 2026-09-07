@@ -161,7 +161,7 @@ Things the specs do not yet answer. Add here rather than deciding silently mid-b
 | # | Question | Blocks | Status |
 |---|---|---|---|
 | Q-1 | Module naming — the symmetric `Apna Slot Core` / `Apna Slot Booking`. | T-a | **settled** in T-a |
-| Q-2 | Does the `Venue` permission query's `OR status = 'Published'` clause need a separate read path for guests, or does one condition serve both publisher and public listing? | T-c | open |
+| Q-2 | Does the `Venue` permission query's `OR status = 'Published'` clause need a separate read path for guests, or does one condition serve both publisher and public listing? | T-c | **settled** as [D-34](./01-decisions.md): a separate read path. `tenant_query` stays fail-closed; `api.discovery` owns the public one. |
 
 ---
 

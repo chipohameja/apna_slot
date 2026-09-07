@@ -161,9 +161,10 @@ permission_query_conditions = {
 ```
 
 `tenant_query(user, doctype)` returns `` `tab{doctype}`.publisher in (…) `` — which is why
-`publisher` is denormalised onto `Bookable Resource` and `Resource Closure`. For **Venue** the
-condition is `OR status = 'Published'` when the doctype is read by a customer or guest, so the
-public listing works through the same code path as the publisher listing.
+`publisher` is denormalised onto `Bookable Resource` and `Resource Closure`. **Venue** uses the
+same condition unchanged: the public listing does *not* travel through it. Customers and guests
+read published venues through `apna_slot/api/discovery.py`, which applies `status = "Published"`
+itself — see [D-34](./01-decisions.md#d-34--public-venue-reads-go-through-apidiscovery-not-the-permission-query--settled).
 
 `has_permission`: `Staff` members get read-only on Venue and Bookable Resource; `Owner` and
 `Manager` get write.

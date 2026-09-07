@@ -359,3 +359,27 @@ before the first DocType is created; moving a DocType between modules later mean
 and moving its folder. `hooks.py` fixtures select by doctype and export to `apna_slot/fixtures/` at
 app level, so modules do not affect them. Only the module *names* are still open — Q-1 in
 [PROGRESS.md](./PROGRESS.md), settled in step T-a.
+
+### D-34 — Public venue reads go through `api.discovery`, not the permission query · *Settled*
+
+Settles Q-1's successor, Q-2. `Venue`'s `permission_query_conditions` stays a **pure tenant
+boundary** — `publisher in (…)`, and `1=0` for a non-member — exactly like every other tenant
+doctype. It gains no `OR status = "Published"` clause, and `Venue` grants no read permission to the
+`Guest` role. Everything a customer or a guest sees comes from `apna_slot/api/discovery.py`, whose
+functions apply `status = "Published"` themselves and return a curated field list.
+
+*Rejected:* one condition serving both paths — `publisher in (…) OR status = "Published"`, as
+sketched in [phase-1-listing.md](./phase-1-listing.md) §2. It reads economically and costs three
+things:
+
+- The condition can then never be `1=0`, so the fail-closed property R3 exists to prove would hold
+  for `Publisher` and not for `Venue` — the doctype where a leak actually matters.
+- It needs `Guest` read on the Venue doctype, which opens `/api/v2/document/Venue` to arbitrary
+  guest `fields` and `filters`: every field of a published venue, contact details included, and
+  every field later phases add.
+- A published venue is not a *tenant* of the reader. Tenancy and publication are two different
+  questions, and sharing one expression means neither can change without disturbing the other.
+
+*Accepted cost:* each discovery function repeats its `status = "Published"` filter. That is one
+line in a module whose entire purpose is the public read path, and it makes 404-not-403 (Phase 5)
+a property of the function rather than a side effect of a query condition.

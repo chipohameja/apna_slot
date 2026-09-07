@@ -118,7 +118,10 @@ caller — grid, quote, booking creation — is already wired through the seam.
 | `api.payment.start` / `.get_checkout` / `.simulate` / `.callback` | mixed | exactly the Phase 4 contract |
 
 Venue and resource creation in Phase T go through the standard `frappe.client` REST layer — no
-custom endpoint, no wizard.
+custom endpoint, no wizard. Reading them back is asymmetric on purpose: a publisher lists their own
+venues through that same REST layer under `tenant_query`, while customers and guests read only
+through `api.discovery`, which filters on `status = "Published"` itself (D-34). The Venue doctype
+grants `Guest` nothing.
 
 ### Frontend — 8 screens, deliberately plain
 
@@ -172,8 +175,11 @@ Each step is committed separately and leaves the app runnable.
    name a role that does not exist yet. Session changes (login, signup, logout) leave the SPA with
    `window.location.href` rather than routing: a new session issues a new CSRF token, and only a
    page load re-renders `www/apnaslot.py`'s boot data with it.
-3. **T-c — Inventory.** `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, the venue
-   list and bare create form.
+3. **T-c — Inventory.** `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, the
+   publisher's venue list and bare create form, and the public list that publishing feeds —
+   `api.discovery.search_venues`. Publishing is only observable through a reader who is not the
+   publisher, so both ends of D-34 ship together. `get_venue` waits for T-d, which owns the venue
+   page it serves.
 4. **T-d — The ledger.** `Booking Slot` + the unique-index patch, `Booking` + `Booking Line`,
    `AvailabilityGrid.for_date`, `PriceResolver`, `create_booking`, the day grid screen.
    *Proves R1 and R2.* **This is the step the whole phase exists for.**
