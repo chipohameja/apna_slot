@@ -150,9 +150,18 @@ commission.
 
 Each step is committed separately and leaves the app runnable.
 
-1. **T-a — Skeleton up.** `hooks.py`, `modules.txt` (two modules), `www/apnaslot.html`,
+1. **T-a — Skeleton up.** `hooks.py`, `modules.txt` (two modules), `www/apnaslot.py`,
    `website_route_rules`, the Vite/Tailwind/frappe-ui scaffold, one page that renders "Apna Slot".
    *Proves R4 before a single doctype exists.*
+
+   The frappe-ui vite plugin, given `frontendRoute: '/apnaslot'`, derives the whole build contract
+   from D-27 on its own — output to `apna_slot/public/frontend`, base `/assets/apna_slot/frontend/`,
+   and **it generates `apna_slot/www/apnaslot.html`** from `frontend/index.html` at build time. That
+   file is therefore a build artefact and gitignored alongside `public/frontend`; a fresh clone
+   needs `yarn build` (or `bench build --app apna_slot`) before the route resolves. The
+   hand-written half is `www/apnaslot.py`, which supplies `context.boot` — the plugin's
+   `jinjaBootData` transform emits each key as `window[key]`, which is how `csrf_token` reaches
+   frappe-ui.
 2. **T-b — Identity.** `Publisher` + `Publisher Member`, `permissions.py`, signup/session APIs,
    login and signup screens. *Proves R3.*
 3. **T-c — Inventory.** `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, the venue

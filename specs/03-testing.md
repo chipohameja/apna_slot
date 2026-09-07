@@ -120,8 +120,16 @@ assertion at each one — a script a human or an agent can replay identically. S
 
 ### Every journey also checks
 
-- **Dark mode.** Re-run the final screen with the dark theme; no unreadable text, no hard-coded
-  colour leaking through (`screenshot` and look).
+- **Dark mode.** frappe-ui's Tailwind preset uses `darkMode: ['selector', '[data-theme="dark"]']`,
+  so the theme is an **attribute on `<html>`, not a `dark` class** — toggling a class changes
+  nothing and silently passes a broken check:
+
+  ```bash
+  agent-browser eval "document.documentElement.setAttribute('data-theme','dark')"
+  agent-browser screenshot dark.png
+  ```
+
+  Re-run the final screen that way; no unreadable text, no hard-coded colour leaking through.
 - **Console.** No errors. `agent-browser console` after the journey.
 - **375px.** At least one journey per frontend phase runs narrow.
 

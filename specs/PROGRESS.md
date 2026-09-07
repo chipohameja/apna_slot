@@ -5,7 +5,8 @@ every phase. If this file and the code disagree, the code is right and this file
 
 **Status legend:** ☐ not started · ◐ in progress · ☑ done (tests + E2E green) · ⊘ deferred
 
-Last updated: 2026-09-06 · Nothing is implemented yet; the app is a bare Frappe skeleton.
+Last updated: 2026-09-07 · Phase T step T-a done. R4 half-settled: the SPA builds, serves and
+mounts cleanly; the cookie-auth half needs T-b.
 
 ---
 
@@ -13,7 +14,7 @@ Last updated: 2026-09-06 · Nothing is implemented yet; the app is a bare Frappe
 
 | Phase | Document | Status | Ships |
 |---|---|---|---|
-| **T** | [phase-t-tracer.md](./phase-t-tracer.md) | ☐ | Walking skeleton: signup → venue → one slot → mock pay → confirmed, with the unique index |
+| **T** | [phase-t-tracer.md](./phase-t-tracer.md) | ◐ | Walking skeleton: signup → venue → one slot → mock pay → confirmed, with the unique index |
 | 0 | [phase-0-foundations.md](./phase-0-foundations.md) | ☐ | Taxonomies, team management, full permission matrix |
 | 1 | [phase-1-listing.md](./phase-1-listing.md) | ☐ | Full listing surface, closures, schedule builder |
 | 2 | [phase-2-pricing.md](./phase-2-pricing.md) | ☐ | Price rules, resolver, pricing calendar |
@@ -34,7 +35,7 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 | R1 | The unique index is a sufficient double-booking guarantee | `test_concurrent_booking_same_slot_one_wins` | ☐ |
 | R2 | Wall-clock + denormalised UTC round-trips through `ZoneInfo` | `test_line_utc_matches_venue_timezone` | ☐ |
 | R3 | Permission hooks isolate tenants and fail closed | `test_query_conditions_fail_closed_for_non_member` | ☐ |
-| R4 | Hand-scaffolded frappe-ui SPA builds, serves, authenticates on cookies | E2E journey T-1 | ☐ |
+| R4 | Hand-scaffolded frappe-ui SPA builds, serves, authenticates on cookies | E2E journey T-1 | ◐ builds + serves + mounts, no console errors, light and dark; cookie auth pending T-b |
 | R5 | Gateway interface + signed callback drives the state machine | `test_callback_confirms_booking` | ☐ |
 | R6 | The scheduled job releases abandoned holds | `test_expiry_job_releases_hold` | ☐ |
 
@@ -44,7 +45,7 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 
 | Step | Deliverable | Status |
 |---|---|---|
-| T-a | `hooks.py`, two modules, `www/apnaslot.html`, route rules, Vite + Tailwind + frappe-ui scaffold serving one page | ☐ |
+| T-a | `hooks.py`, two modules, `www/apnaslot.py`, route rules, Vite + Tailwind + frappe-ui scaffold serving one page | ☑ |
 | T-b | `Publisher` + `Publisher Member`, `permissions.py`, signup/session APIs, login + signup screens | ☐ |
 | T-c | `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, venue list + bare create form | ☐ |
 | T-d | `Booking Slot` + unique-index patch, `Booking` + `Booking Line`, `AvailabilityGrid`, `PriceResolver`, `create_booking`, day-grid screen | ☐ |
@@ -159,5 +160,20 @@ Things the specs do not yet answer. Add here rather than deciding silently mid-b
 
 | # | Question | Blocks | Status |
 |---|---|---|---|
-| Q-1 | Module naming: keep `bench new-app`'s default `Apna Slot` as the core module and add only `Apna Slot Booking`, or rename to the symmetric `Apna Slot Core` / `Apna Slot Booking`? The rename is free at zero doctypes and annoying afterwards. | T-a | open |
+| Q-1 | Module naming — the symmetric `Apna Slot Core` / `Apna Slot Booking`. | T-a | **settled** in T-a |
 | Q-2 | Does the `Venue` permission query's `OR status = 'Published'` clause need a separate read path for guests, or does one condition serve both publisher and public listing? | T-b | open |
+
+---
+
+## Notes from the build
+
+Things learned while building that the phase documents now record.
+
+- **T-a.** The frappe-ui vite plugin derives D-27's whole build contract from `frontendRoute` alone,
+  and generates `www/apnaslot.html` itself — so that file and `public/frontend` are both build
+  artefacts, and the hand-written half is `www/apnaslot.py` supplying `context.boot`.
+- **T-a.** Renaming the default module left a stale `Module Def` row pointing at the old dotted
+  path, which fails `migrate` with `ModuleNotFoundError` until the cache is cleared and the row
+  removed. Do the module split before the first DocType exists, as D-33 says.
+- **T-a.** Dark mode is `data-theme="dark"` on `<html>`, not a `dark` class — see
+  [03-testing.md](./03-testing.md) §4.
