@@ -5,8 +5,8 @@ every phase. If this file and the code disagree, the code is right and this file
 
 **Status legend:** ☐ not started · ◐ in progress · ☑ done (tests + E2E green) · ⊘ deferred
 
-Last updated: 2026-09-07 · Phase T step T-a done. R4 half-settled: the SPA builds, serves and
-mounts cleanly; the cookie-auth half needs T-b.
+Last updated: 2026-09-07 · Phase T steps T-a and T-b done. R3 settled and R4 settled in full:
+signup, login, logout and the publisher onboarding form all work on session cookies.
 
 ---
 
@@ -34,8 +34,8 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 |---|---|---|---|
 | R1 | The unique index is a sufficient double-booking guarantee | `test_concurrent_booking_same_slot_one_wins` | ☐ |
 | R2 | Wall-clock + denormalised UTC round-trips through `ZoneInfo` | `test_line_utc_matches_venue_timezone` | ☐ |
-| R3 | Permission hooks isolate tenants and fail closed | `test_query_conditions_fail_closed_for_non_member` | ☐ |
-| R4 | Hand-scaffolded frappe-ui SPA builds, serves, authenticates on cookies | E2E journey T-1 | ◐ builds + serves + mounts, no console errors, light and dark; cookie auth pending T-b |
+| R3 | Permission hooks isolate tenants and fail closed | `test_query_conditions_fail_closed_for_non_member` | ☑ |
+| R4 | Hand-scaffolded frappe-ui SPA builds, serves, authenticates on cookies | E2E journey T-1 | ☑ builds, serves, and authenticates on cookies; no console errors, light and dark, 375px |
 | R5 | Gateway interface + signed callback drives the state machine | `test_callback_confirms_booking` | ☐ |
 | R6 | The scheduled job releases abandoned holds | `test_expiry_job_releases_hold` | ☐ |
 
@@ -46,7 +46,7 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 | Step | Deliverable | Status |
 |---|---|---|
 | T-a | `hooks.py`, two modules, `www/apnaslot.py`, route rules, Vite + Tailwind + frappe-ui scaffold serving one page | ☑ |
-| T-b | `Publisher` + `Publisher Member`, `permissions.py`, signup/session APIs, login + signup screens | ☐ |
+| T-b | `Publisher` + `Publisher Member`, `permissions.py`, signup/session APIs, login + signup + onboarding screens | ☑ |
 | T-c | `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, venue list + bare create form | ☐ |
 | T-d | `Booking Slot` + unique-index patch, `Booking` + `Booking Line`, `AvailabilityGrid`, `PriceResolver`, `create_booking`, day-grid screen | ☐ |
 | T-e | Gateway ABC, `MockGateway`, `Payment Transaction`, start/callback, checkout + mock-pay screens, `confirm_booking` | ☐ |
@@ -147,7 +147,7 @@ that introduces it is done.
 | I-5 Booking window | 3 | `test_series_beyond_advance_window_rejected` | ☐ |
 | I-6 Price snapshot | 2 | `test_price_edit_does_not_alter_existing_booking` | ☐ |
 | I-7 Post-confirmation immutability | 3 | `test_confirmed_booking_lines_immutable` | ☐ |
-| I-8 Tenant isolation | T | `test_query_conditions_fail_closed_for_non_member` | ☐ |
+| I-8 Tenant isolation | T | `test_query_conditions_fail_closed_for_non_member` | ☑ |
 | I-9 Snapshot immutability | T | `test_line_utc_matches_venue_timezone` | ☐ |
 | I-10 Money reconciliation | 4 | `test_success_confirms_and_snapshots_commission` | ☐ |
 
@@ -161,7 +161,7 @@ Things the specs do not yet answer. Add here rather than deciding silently mid-b
 | # | Question | Blocks | Status |
 |---|---|---|---|
 | Q-1 | Module naming — the symmetric `Apna Slot Core` / `Apna Slot Booking`. | T-a | **settled** in T-a |
-| Q-2 | Does the `Venue` permission query's `OR status = 'Published'` clause need a separate read path for guests, or does one condition serve both publisher and public listing? | T-b | open |
+| Q-2 | Does the `Venue` permission query's `OR status = 'Published'` clause need a separate read path for guests, or does one condition serve both publisher and public listing? | T-c | open |
 
 ---
 
@@ -176,4 +176,15 @@ Things learned while building that the phase documents now record.
   path, which fails `migrate` with `ModuleNotFoundError` until the cache is cleared and the row
   removed. Do the module split before the first DocType exists, as D-33 says.
 - **T-a.** Dark mode is `data-theme="dark"` on `<html>`, not a `dark` class — see
-  [03-testing.md](./03-testing.md) §4.
+  [03-testing.md](./03-testing.md) §4. Screenshot *after* the attribute flip settles: the theme
+  transition is animated, and a shot taken immediately catches unreadable mid-transition colours.
+- **T-b.** Roles cannot be created by the DocType JSON that references them. They ship as
+  `apna_slot/fixtures/role.json`, which `migrate` imports after the doctype sync; that ordering is
+  safe only because DocType import sets `ignore_links`.
+- **T-b.** Every session change leaves the SPA via `window.location.href`. A new session carries a
+  new CSRF token, and only a full page load re-renders `www/apnaslot.py`'s boot data with it.
+- **T-b.** `FormControl` applies its `class` to the wrapper, not to the control, so
+  `type="select"` / `type="combobox"` stay content-width in a form of full-width inputs. The
+  library's own idiom is `<Select class="w-full">` next to a `FormLabel`.
+- **T-b.** Running the suite needs `bench --site apnaslot.localhost set-config allow_tests true`
+  once.

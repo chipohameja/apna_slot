@@ -10,3 +10,16 @@ app_license = "agpl-3.0"
 website_route_rules = [
 	{"from_route": "/apnaslot/<path:app_path>", "to_route": "apnaslot"},
 ]
+
+# --- Tenant isolation (extended by every later phase) ------------------
+permission_query_conditions = {
+	"Publisher": "apna_slot.permissions.publisher_query",
+}
+has_permission = {
+	"Publisher": "apna_slot.permissions.publisher_has_permission",
+}
+
+# --- Fixtures ----------------------------------------------------------
+fixtures = [
+	{"dt": "Role", "filters": [["role_name", "in", ["Apna Slot Customer", "Apna Slot Publisher"]]]},
+]

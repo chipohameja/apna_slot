@@ -109,7 +109,7 @@ caller — grid, quote, booking creation — is already wired through the seam.
 |---|---|---|
 | `api.auth.sign_up` | yes | rate-limited; `Apna Slot Customer` role; logs in |
 | `api.auth.get_session_user` | yes | SPA bootstrap payload |
-| `api.publisher.create_publisher` | no | caller becomes `Owner` |
+| `api.publisher.create_publisher` | no | caller becomes `Owner`; no `contact_phone` until Phase 0 adds the field |
 | `api.discovery.search_venues` | yes | **T version:** published venues only, no filters, no pagination |
 | `api.discovery.get_venue` | yes | by slug; 404 for unpublished |
 | `api.availability.get_day` | yes | one resource, one date |
@@ -120,14 +120,16 @@ caller — grid, quote, booking creation — is already wired through the seam.
 Venue and resource creation in Phase T go through the standard `frappe.client` REST layer — no
 custom endpoint, no wizard.
 
-### Frontend — 7 screens, deliberately plain
+### Frontend — 8 screens, deliberately plain
 
 `/apnaslot/signup` · `/apnaslot/login` · `/apnaslot/` (venue list) · `/apnaslot/venues/:slug`
 (day grid, one slot selectable) · `/apnaslot/checkout/:booking` · `/apnaslot/pay/:token` ·
 `/apnaslot/bookings`.
 
-Plus one publisher screen, `/apnaslot/manage/venues`, that lists venues and links to a bare
-create-venue form. No wizard, no tabs, no schedule builder, no calendar.
+Plus two publisher screens: `/apnaslot/manage/onboarding`, the create-your-business form that
+`create_publisher` needs and the `requiresPublisher` guard redirects to, and
+`/apnaslot/manage/venues`, which lists venues and links to a bare create-venue form. No wizard,
+no tabs, no schedule builder, no calendar.
 
 Styling is frappe-ui components and `bg-surface-*` / `text-ink-*` / `border-outline-*` tokens from
 the start — the tokens are free and retrofitting hard-coded colours is not.
@@ -163,7 +165,13 @@ Each step is committed separately and leaves the app runnable.
    `jinjaBootData` transform emits each key as `window[key]`, which is how `csrf_token` reaches
    frappe-ui.
 2. **T-b — Identity.** `Publisher` + `Publisher Member`, `permissions.py`, signup/session APIs,
-   login and signup screens. *Proves R3.*
+   login, signup and onboarding screens. *Proves R3.*
+
+   The two roles ship as a fixture file, `apna_slot/fixtures/role.json`, which `migrate` imports
+   after the doctype sync — DocType JSON is imported with `ignore_links`, so a permission row may
+   name a role that does not exist yet. Session changes (login, signup, logout) leave the SPA with
+   `window.location.href` rather than routing: a new session issues a new CSRF token, and only a
+   page load re-renders `www/apnaslot.py`'s boot data with it.
 3. **T-c — Inventory.** `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, the venue
    list and bare create form.
 4. **T-d — The ledger.** `Booking Slot` + the unique-index patch, `Booking` + `Booking Line`,
@@ -214,6 +222,8 @@ tracer bullet that lands somewhere unexpected is information, not a defect to wo
 | `test_query_conditions_scope_to_membership` | R3 | A sees only A |
 | `test_query_conditions_fail_closed_for_non_member` | R3 | condition is `1=0`, list is empty |
 | `test_signup_creates_customer_role` | — | role + `user_type == "Website User"` |
+| `test_signup_logs_the_new_customer_in` | R4 | `get_session_user` returns the new user, not Guest |
+| `test_create_publisher_grants_publisher_role` | R3 | role granted; the publisher shows up in the session payload |
 | `test_callback_confirms_booking` | R5 | `Confirmed`, hold cleared, ledger row kept |
 | `test_callback_rejects_bad_signature` | R5 | raises; booking untouched |
 | `test_payment_failure_releases_slot` | R5 | zero ledger rows |
