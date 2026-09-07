@@ -189,8 +189,16 @@ Each step is committed separately and leaves the app runnable.
    The shell is not a placeholder: creating a hold with nowhere to land would be, and T-e adds the
    gateway to this page rather than replacing it.
 5. **T-e — Money.** Gateway ABC, `MockGateway`, `Payment Transaction`, start/callback, the checkout
-   and mock-pay screens, `confirm_booking`. *Proves R5.*
-6. **T-f — The timer.** `expire_pending_bookings`, `release_booking`, My Bookings. *Proves R6.*
+   and mock-pay screens, `confirm_booking` **and `release_booking`**. *Proves R5.*
+
+   `release_booking` was drafted into T-f with the expiry job, but the Fail button needs it here:
+   acceptance criterion 9 says a failed payment frees the slot on the next grid read, not on the
+   next sweep. T-f inherits it rather than writing it.
+
+   The expiry-beats-success guard ships whole — a `succeeded` callback for a lapsed hold marks the
+   transaction and leaves the booking alone. The `Refund` it owes the customer is Phase 6's, and
+   [phase-4-mock-payments.md](./phase-4-mock-payments.md) §3 already owns that half.
+6. **T-f — The timer.** `expire_pending_bookings`, My Bookings. *Proves R6.*
 
 If a step cannot be completed as specified, **stop and amend the specs before continuing** — a
 tracer bullet that lands somewhere unexpected is information, not a defect to work around.
@@ -235,12 +243,19 @@ tracer bullet that lands somewhere unexpected is information, not a defect to wo
 | `test_signup_creates_customer_role` | — | role + `user_type == "Website User"` |
 | `test_signup_logs_the_new_customer_in` | R4 | `get_session_user` returns the new user, not Guest |
 | `test_create_publisher_grants_publisher_role` | R3 | role granted; the publisher shows up in the session payload |
+| `test_start_opens_a_hosted_checkout` | R5 | the gateway hands over the URL; transaction `Pending` |
+| `test_start_reuses_a_live_transaction` | R5 | one transaction per hold |
+| `test_start_refuses_a_booking_that_is_no_longer_held` | R5 | a settled booking cannot be paid for |
+| `test_get_checkout_refuses_someone_elses_token` | R5 | the bearer token reads 404 for the wrong holder |
 | `test_callback_confirms_booking` | R5 | `Confirmed`, hold cleared, ledger row kept |
 | `test_callback_rejects_bad_signature` | R5 | raises; booking untouched |
-| `test_payment_failure_releases_slot` | R5 | zero ledger rows |
+| `test_callback_is_idempotent` | R5 | a repeated callback returns the same result and re-confirms nothing |
+| `test_payment_failure_releases_slot` | R5 | zero ledger rows; the grid reads `available` again |
+| `test_abandonment_leaves_the_hold_alone` | R5 | still `Pending Payment`, ledger row intact |
+| `test_success_after_expiry_does_not_resurrect_the_booking` | R5 | transaction `Succeeded`, booking stays `Expired` |
+| `test_release_booking_is_idempotent` | R6 | called twice, one result, no raise |
 | `test_expiry_job_releases_hold` | R6 | `Expired`, zero ledger rows |
 | `test_expiry_job_ignores_confirmed` | R6 | |
-| `test_release_booking_idempotent` | R6 | called twice, one result, no raise |
 
 **E2E — journey T-1**, driven by agent-browser per [03-testing.md](./03-testing.md): the full
 acceptance walk in §2, plus a second browser context proving the slot is gone.

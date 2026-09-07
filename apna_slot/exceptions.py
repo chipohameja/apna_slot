@@ -13,6 +13,21 @@ class SlotUnavailableError(frappe.ValidationError):
 		super().__init__(describe_conflicts(conflicting_lines))
 
 
+class HoldExpiredError(frappe.ValidationError):
+	"""The hold lapsed before payment. Carries the deadline the countdown was running to."""
+
+	http_status_code = 410
+
+	def __init__(self, deadline_utc):
+		self.deadline_utc = deadline_utc
+		super().__init__(_("This hold has expired. Pick your slots again."))
+
+
+def refuse_expired_hold(deadline_utc) -> None:
+	"""Raise the 410, thrown rather than raised for the same reason as `refuse_slots`."""
+	frappe.throw(_("This hold has expired. Pick your slots again."), exc=HoldExpiredError(deadline_utc))
+
+
 def refuse_slots(conflicting_lines: list[dict]) -> None:
 	"""Raise the 409. Thrown rather than raised because only `frappe.throw` puts the message in
 	the response — a bare `raise` sends the browser the exception class name and nothing else."""

@@ -3,6 +3,7 @@ from datetime import date, time
 import frappe
 from frappe.utils import add_to_date, getdate
 
+from apna_slot.apna_slot_booking.doctype.booking.booking import HOLDING_STATUSES
 from apna_slot.availability import AVAILABLE, AvailabilityGrid
 from apna_slot.constants import HOLD_MINUTES
 from apna_slot.exceptions import SlotUnavailableError, refuse_slots
@@ -138,3 +139,29 @@ def _receipt(booking) -> dict:
 		"currency": booking.currency,
 		"line_count": booking.line_count,
 	}
+
+
+def confirm_booking(booking: str) -> dict:
+	"""Pending Payment → Confirmed. Clears the hold, keeps the ledger rows (I-2)."""
+	document = frappe.get_doc("Booking", booking)
+	document.confirm()
+	return _receipt(document)
+
+
+def release_booking(booking: str, status: str) -> dict:
+	"""Give every held slot back and park the booking on a non-holding status (I-2).
+	Idempotent — a failed payment and the expiry job can race for the same hold."""
+	document = frappe.get_doc("Booking", booking)
+	if document.status not in HOLDING_STATUSES:
+		return {"booking": document.name, "status": document.status, "released": 0}
+	released = _drop_ledger_rows(document.name)
+	document.release(status)
+	return {"booking": document.name, "status": status, "released": released}
+
+
+def _drop_ledger_rows(booking: str) -> int:
+	"""Privileged by design: no role writes the ledger, only this module."""
+	rows = frappe.get_all("Booking Slot", filters={"booking": booking}, pluck="name")
+	for row in rows:
+		frappe.delete_doc("Booking Slot", row, ignore_permissions=True, delete_permanently=True)
+	return len(rows)

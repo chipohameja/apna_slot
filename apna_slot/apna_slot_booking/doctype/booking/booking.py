@@ -20,6 +20,21 @@ class Booking(Document):
 	def on_trash(self):
 		frappe.throw(_("Bookings are cancelled, never deleted"))
 
+	def confirm(self) -> None:
+		"""Payment landed: the hold ends and every ledger row stays where it is (I-2)."""
+		self.status = "Confirmed"
+		self.hold_expires_at = None
+		self.save(ignore_permissions=True)
+
+	def release(self, status: str) -> None:
+		"""The slots have gone back to the grid, so the lines that held them are cancelled.
+		Privileged: the callback that calls this may be running as the gateway, not as a user."""
+		for line in self.active_lines:
+			line.status = "Cancelled"
+		self.status = status
+		self.hold_expires_at = None
+		self.save(ignore_permissions=True)
+
 	@property
 	def active_lines(self) -> list:
 		return [line for line in self.lines if line.status == "Active"]

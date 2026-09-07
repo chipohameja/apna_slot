@@ -61,7 +61,7 @@ def publisher_of(doc) -> str | None:
 	denormalises `publisher`, so a new document resolves through whatever link it does carry."""
 	if doc.get("publisher"):
 		return doc.get("publisher")
-	for doctype, fieldname in (("Venue", "venue"), ("Bookable Resource", "resource")):
+	for doctype, fieldname in (("Venue", "venue"), ("Bookable Resource", "resource"), ("Booking", "booking")):
 		parent = doc.get(fieldname)
 		if parent:
 			return frappe.db.get_value(doctype, parent, "publisher")

@@ -120,8 +120,11 @@ def in_own_connection(work):
 
 
 def make_committed_arena(prefix: str, customers: int = 2) -> Arena:
-	"""A publisher, venue and resource visible to other connections — what a race needs."""
-	return in_own_connection(lambda: _build_arena(prefix, customers))
+	"""A publisher, venue and resource visible to other connections — what a race needs.
+	Salted, because these rows are committed: a run whose teardown fails must not poison
+	the next one with a half-built arena of the same name."""
+	salted = f"{prefix}-{frappe.generate_hash(length=6)}"
+	return in_own_connection(lambda: _build_arena(salted, customers))
 
 
 def drop_committed_arena(arena: Arena) -> None:

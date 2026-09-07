@@ -35,6 +35,11 @@ proves the screens are wired to the APIs, not that the pricing ladder is correct
    - A test class is rolled back **as a unit**, not per test, so a class that has already written
      holds naming-series row locks that its own second connection will then wait on until it times
      out. Concurrency tests live in their **own `IntegrationTestCase` class**, which starts clean.
+     The same unit of rollback means tests within one class **see each other's rows**: `TestPayment`
+     books a different date per test, because two tests holding one slot would collide on the ledger
+     rather than on whatever they meant to prove. A class that drops its own committed fixtures must
+     `frappe.db.rollback()` first — the other connection's `DELETE` otherwise waits on locks this
+     one is still holding, and times out.
    - The fixtures a second connection must see have to be committed, and committing on the *test's*
      connection commits every row every earlier test created — which then outlives the suite.
      `tests/fixtures.py` commits on its own connection (`in_own_connection`) and the test registers
@@ -76,6 +81,18 @@ cd apps/apna_slot/frontend && yarn test
 ```
 
 `bench start` must be running for E2E. Start it in the background only if it is not already up.
+
+The suite needs two site-config keys, set once:
+
+```bash
+bench --site apnaslot.localhost set-config allow_tests true
+bench --site apnaslot.localhost set-config throttle_user_limit 500 --parse
+```
+
+`throttle_user_limit` is Frappe's guard against runaway signups — 60 users an hour by default.
+The fixtures sign every user up through the real API (rule 7), so a suite that runs twice within
+the hour trips it and reports `Throttled` from somewhere unrelated to the failing test. `--parse`
+matters: without it the value is stored as a string and the comparison raises a `TypeError`.
 
 ---
 

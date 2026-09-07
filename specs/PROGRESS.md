@@ -5,9 +5,10 @@ every phase. If this file and the code disagree, the code is right and this file
 
 **Status legend:** ☐ not started · ◐ in progress · ☑ done (tests + E2E green) · ⊘ deferred
 
-Last updated: 2026-09-07 · Phase T steps T-a to T-d done. **R1, R2, R3 and R4 settled.** The
-ledger holds: a customer books a slot through the SPA, the hold blocks everyone else, and two
-concurrent connections racing for one slot leave exactly one booking and one ledger row.
+Last updated: 2026-09-07 · Phase T steps T-a to T-e done. **R1, R2, R3, R4 and R5 settled.**
+Money moves: a customer books a slot through the SPA, is redirected to the mock gateway, and a
+signed callback confirms the booking, releases it on failure, or leaves it alone on abandonment.
+Only the timer (T-f) is missing.
 
 ---
 
@@ -37,7 +38,7 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 | R2 | Wall-clock + denormalised UTC round-trips through `ZoneInfo` | `test_line_utc_matches_venue_timezone` | ☑ Dubai 19:00 → 15:00Z, Kolkata 19:00 → 13:30Z, on a site running `Africa/Kigali` |
 | R3 | Permission hooks isolate tenants and fail closed | `test_query_conditions_fail_closed_for_non_member` | ☑ also proven on `Venue`: list, document read, and creating a resource under another tenant's venue |
 | R4 | Hand-scaffolded frappe-ui SPA builds, serves, authenticates on cookies | E2E journey T-1 | ☑ builds, serves, and authenticates on cookies; no console errors, light and dark, 375px |
-| R5 | Gateway interface + signed callback drives the state machine | `test_callback_confirms_booking` | ☐ |
+| R5 | Gateway interface + signed callback drives the state machine | `test_callback_confirms_booking` | ☑ succeed confirms, fail releases, abandon waits for the timer; a forged signature is refused and a repeated callback changes nothing |
 | R6 | The scheduled job releases abandoned holds | `test_expiry_job_releases_hold` | ☐ |
 
 ---
@@ -50,8 +51,8 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 | T-b | `Publisher` + `Publisher Member`, `permissions.py`, signup/session APIs, login + signup + onboarding screens | ☑ |
 | T-c | `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, `api.discovery.search_venues`, publisher venue list + bare create form, public list | ☑ |
 | T-d | `Booking Slot` + unique-index patch, `Booking` + `Booking Line`, `AvailabilityGrid`, `PriceResolver`, `create_booking`, `get_venue`, venue page with day grid, checkout shell | ☑ |
-| T-e | Gateway ABC, `MockGateway`, `Payment Transaction`, start/callback, checkout + mock-pay screens, `confirm_booking` | ☐ |
-| T-f | `expire_pending_bookings`, `release_booking`, My Bookings | ☐ |
+| T-e | Gateway ABC, `MockGateway`, `Payment Transaction`, start/callback, checkout + mock-pay screens, `confirm_booking`, `release_booking` | ☑ |
+| T-f | `expire_pending_bookings`, My Bookings | ☐ |
 | T-x | `tests/test_tracer.py` green; E2E journeys T-1, T-2, T-3 pass | ☐ |
 
 ## Phase 0 — Foundations
@@ -220,3 +221,20 @@ Things learned while building that the phase documents now record.
 - **T-d.** `frappe.utils.now_datetime()` is the *site's* timezone (`Africa/Kigali` here), not UTC.
   Every instant this app writes comes from `utils.timezone.utc_now()`; the mismatch would have been
   invisible on a UTC site.
+- **T-e.** `release_booking` was drafted into T-f and had to move here: the Fail button frees the
+  slot on the next grid read, not on the next sweep. The spec's build order now says so.
+- **T-e.** Frappe throttles user creation at 60 an hour (`throttle_user_limit`). The fixtures sign
+  every user up through the real API, so a suite that grew by eleven tests began reporting
+  `Throttled` from tests that had nothing to do with users. Two fixes, both worth keeping: the
+  payment tests share **one** committed arena instead of building one each — which also cut the
+  suite from 70s to 18s — and the site config raises the limit so a rerun inside the hour works.
+- **T-e.** `IntegrationTestCase` rolls a class back **as a unit**, so a shared arena means the
+  tests inside it see each other's rows. Every payment test books its own date; sharing 19:00
+  made every test after the first fail on a slot collision in `setUp`.
+- **T-e.** A class that drops its own committed fixtures in `tearDownClass` must
+  `frappe.db.rollback()` first, or the dropping connection's `DELETE` waits on locks the test
+  connection still holds and dies with a lock-wait timeout. Committed fixture names are now salted,
+  because a teardown that fails once otherwise poisons every later run with a half-built arena.
+- **T-e.** `frappe.utils.verified_command.get_secret()` is the site secret the HMAC signs with —
+  no new key, no new config. `simulate` computes the signature and calls `callback` in process, so
+  the button exercises the production verification path rather than a shortcut around it.

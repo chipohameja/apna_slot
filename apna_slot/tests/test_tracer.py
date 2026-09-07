@@ -1,15 +1,18 @@
+import itertools
 import threading
 
 import frappe
 from frappe.tests import IntegrationTestCase
 from frappe.utils import add_days, getdate
 
+from apna_slot.api import payment
 from apna_slot.api.auth import CUSTOMER_ROLE, get_session_user
 from apna_slot.api.discovery import search_venues
 from apna_slot.availability import get_day_grid
-from apna_slot.booking_engine import BookingRequest, create_booking
+from apna_slot.booking_engine import BookingRequest, create_booking, release_booking
 from apna_slot.constants import HOLD_MINUTES
 from apna_slot.exceptions import SlotUnavailableError
+from apna_slot.gateways.base import ABANDONED, FAILED, SUCCEEDED
 from apna_slot.patches.v1_0.add_booking_slot_unique_index import INDEX_NAME
 from apna_slot.apna_slot_core.doctype.publisher.publisher import PUBLISHER_ROLE
 from apna_slot.permissions import clear_publisher_cache, publisher_query
@@ -256,7 +259,7 @@ class TestTracer(IntegrationTestCase):
 	def test_grid_generation_counts_slots(self):
 		resource = self._arena("grid")
 
-		slots = get_day_grid(resource, self._tomorrow())
+		slots = get_day_grid(resource, tomorrow())
 
 		self.assertEqual(len(slots), 4)
 		self.assertEqual(slots[0]["start_time"], "18:00:00")
@@ -266,7 +269,7 @@ class TestTracer(IntegrationTestCase):
 	def test_grid_marks_booked_from_ledger(self):
 		"""A held slot reads `booked` to everyone but its owner — never `held`."""
 		resource = self._arena("held")
-		day = self._tomorrow()
+		day = tomorrow()
 		customer = make_customer("holder.tracer@example.com", "Hal Holder")
 		create_booking(resource, day, "19:00:00", customer=customer)
 
@@ -278,7 +281,7 @@ class TestTracer(IntegrationTestCase):
 
 	def test_booking_holds_one_slot_for_ten_minutes(self):
 		resource = self._arena("hold")
-		day = self._tomorrow()
+		day = tomorrow()
 		customer = make_customer("hold.tracer@example.com", "Hana Hold")
 
 		receipt = create_booking(resource, day, "19:00:00", customer=customer)
@@ -295,7 +298,7 @@ class TestTracer(IntegrationTestCase):
 		owner = make_customer("zones.tracer@example.com", "Zaid Zones")
 		publisher = make_publisher(owner, "Tracer Zones Publisher")
 		customer = make_customer("traveller.tracer@example.com", "Tia Traveller")
-		day = self._tomorrow()
+		day = tomorrow()
 
 		instants = {
 			timezone: self._book_at_seven(publisher, timezone, day, customer)
@@ -307,7 +310,7 @@ class TestTracer(IntegrationTestCase):
 
 	def test_booking_a_taken_slot_is_refused_with_the_conflict(self):
 		resource = self._arena("taken")
-		day = self._tomorrow()
+		day = tomorrow()
 		create_booking(resource, day, "19:00:00", customer=make_customer("first.tracer@example.com"))
 
 		with self.assertRaises(SlotUnavailableError) as refusal:
@@ -322,14 +325,14 @@ class TestTracer(IntegrationTestCase):
 		resource = self._arena("offgrid")
 
 		with self.assertRaises(SlotUnavailableError) as refusal:
-			create_booking(resource, self._tomorrow(), "09:00:00", customer=make_customer("early.tracer@example.com"))
+			create_booking(resource, tomorrow(), "09:00:00", customer=make_customer("early.tracer@example.com"))
 
 		self.assertEqual(refusal.exception.conflicting_lines[0]["reason"], "off_grid")
 
 	def test_duplicate_ledger_insert_rolls_back_booking(self):
 		"""R1: a collision leaves no orphan Booking behind."""
 		resource = self._arena("orphan")
-		day = self._tomorrow()
+		day = tomorrow()
 		create_booking(resource, day, "19:00:00", customer=make_customer("keeper.tracer@example.com"))
 		loser = make_customer("loser.tracer@example.com")
 
@@ -345,7 +348,7 @@ class TestTracer(IntegrationTestCase):
 		owner = frappe.db.get_value("Bookable Resource", resource, "publisher")
 		owner_user = frappe.get_doc("Publisher", owner).members[0].user
 		customer = make_customer("mine.tracer@example.com", "Mia Mine")
-		booking = create_booking(resource, self._tomorrow(), "19:00:00", customer=customer)["booking"]
+		booking = create_booking(resource, tomorrow(), "19:00:00", customer=customer)["booking"]
 
 		self.assertEqual(self._bookings_visible_to(customer), [booking])
 		self.assertEqual(self._bookings_visible_to(owner_user), [booking])
@@ -366,9 +369,6 @@ class TestTracer(IntegrationTestCase):
 		self._publish(venue)
 		return resource
 
-	def _tomorrow(self):
-		return getdate(add_days(getdate(), 1))
-
 	def _book_at_seven(self, publisher: str, timezone: str, day, customer: str):
 		frappe.set_user(frappe.get_doc("Publisher", publisher).members[0].user)
 		venue = make_venue(publisher, f"Tracer {timezone} Arena", timezone=timezone)
@@ -386,9 +386,150 @@ class TestTracer(IntegrationTestCase):
 		document.save()
 
 
+def tomorrow():
+	return getdate(add_days(getdate(), 1))
+
+
 def unused_venue_name() -> str:
 	"""Slug assertions are exact, so they must not collide with whatever the site already holds."""
 	return f"Tracer Arena {frappe.generate_hash(length=8)}"
+
+
+class TestPayment(IntegrationTestCase):
+	"""R5. One committed arena for the whole class: Frappe throttles user creation to 60 an
+	hour, and a suite that signs a new customer up per assertion spends that budget on nothing."""
+
+	_unused_days = itertools.count(1)
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+		cls.arena = make_committed_arena("payment", customers=2)
+		cls.customer, cls.stranger = cls.arena.users[1], cls.arena.users[2]
+
+	@classmethod
+	def tearDownClass(cls):
+		frappe.db.rollback()  # the arena is dropped on another connection; this one must let go first
+		drop_committed_arena(cls.arena)
+		super().tearDownClass()
+
+	def setUp(self):
+		"""Every payment test starts where the pay page does: one live hold, on a date of its
+		own. Frappe rolls a test class back as a unit, so two tests sharing a slot would
+		collide on the ledger instead of on whatever they meant to prove."""
+		super().setUp()
+		clear_publisher_cache()
+		frappe.set_user("Administrator")
+		self.day = getdate(add_days(getdate(), next(self._unused_days)))
+		self.booking = create_booking(self.arena.resource, self.day, "19:00:00", customer=self.customer)["booking"]
+		frappe.set_user(self.customer)
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def test_start_opens_a_hosted_checkout(self):
+		"""R5: the SPA never builds a payment URL; the gateway hands one over."""
+		opened = payment.start(self.booking)
+
+		self.assertEqual(opened["redirect_url"], f"/apnaslot/pay/{opened['checkout_token']}")
+		transaction = frappe.get_doc("Payment Transaction", {"checkout_token": opened["checkout_token"]})
+		self.assertEqual((transaction.status, transaction.amount), ("Pending", 250.0))
+		self.assertTrue(transaction.gateway_reference.startswith("MOCK-"))
+
+	def test_start_reuses_a_live_transaction(self):
+		"""A second checkout for the same hold would strand the first."""
+		first = payment.start(self.booking)["checkout_token"]
+		second = payment.start(self.booking)["checkout_token"]
+
+		self.assertEqual(first, second)
+		self.assertEqual(frappe.db.count("Payment Transaction", {"booking": self.booking}), 1)
+
+	def test_get_checkout_refuses_someone_elses_token(self):
+		"""The token is a bearer credential, so a wrong holder reads as 404, never 403."""
+		token = payment.start(self.booking)["checkout_token"]
+
+		frappe.set_user(self.stranger)
+		with self.assertRaises(frappe.DoesNotExistError):
+			payment.get_checkout(token)
+
+	def test_callback_confirms_booking(self):
+		"""**R5.** The signed callback drives the state machine; the ledger row stays put."""
+		token = payment.start(self.booking)["checkout_token"]
+
+		outcome = payment.simulate(token, SUCCEEDED)
+
+		booking = frappe.get_doc("Booking", self.booking)
+		self.assertEqual((outcome["status"], booking.status), ("Succeeded", "Confirmed"))
+		self.assertIsNone(booking.hold_expires_at)
+		self.assertEqual(frappe.db.count("Booking Slot", {"booking": booking.name}), 1)
+
+	def test_callback_rejects_bad_signature(self):
+		"""R5: a forged result is refused and the booking is untouched."""
+		token = payment.start(self.booking)["checkout_token"]
+
+		with self.assertRaises(frappe.PermissionError):
+			payment.callback(token, SUCCEEDED, "not-the-signature")
+
+		self.assertEqual(frappe.db.get_value("Booking", self.booking, "status"), "Pending Payment")
+		self.assertEqual(frappe.db.count("Booking Slot", {"booking": self.booking}), 1)
+
+	def test_callback_is_idempotent(self):
+		"""A gateway that retries must not confirm, email or charge a second time."""
+		token = payment.start(self.booking)["checkout_token"]
+
+		first = payment.simulate(token, SUCCEEDED)
+		second = payment.simulate(token, FAILED)
+
+		self.assertEqual(first, second)
+		self.assertEqual(frappe.db.get_value("Booking", self.booking, "status"), "Confirmed")
+		self.assertEqual(frappe.db.count("Booking Slot", {"booking": self.booking}), 1)
+
+	def test_payment_failure_releases_slot(self):
+		"""R5: the slot is back on the grid on the next read, not on the next sweep."""
+		token = payment.start(self.booking)["checkout_token"]
+
+		payment.simulate(token, FAILED)
+
+		booking = frappe.get_doc("Booking", self.booking)
+		self.assertEqual((booking.status, booking.active_line_count), ("Payment Failed", 0))
+		self.assertEqual(frappe.db.count("Booking Slot", {"booking": booking.name}), 0)
+		statuses = {slot["start_time"]: slot["status"] for slot in get_day_grid(self.arena.resource, self.day)}
+		self.assertEqual(statuses["19:00:00"], "available")
+
+	def test_abandonment_leaves_the_hold_alone(self):
+		"""D-16: only the timer releases a hold the customer walked away from."""
+		token = payment.start(self.booking)["checkout_token"]
+
+		payment.simulate(token, ABANDONED)
+
+		self.assertEqual(frappe.db.get_value("Booking", self.booking, "status"), "Pending Payment")
+		self.assertEqual(frappe.db.count("Booking Slot", {"booking": self.booking}), 1)
+
+	def test_success_after_expiry_does_not_resurrect_the_booking(self):
+		"""Expiry beats success: the slot may already belong to someone else."""
+		token = payment.start(self.booking)["checkout_token"]
+		release_booking(self.booking, "Expired")
+
+		outcome = payment.simulate(token, SUCCEEDED)
+
+		self.assertEqual(outcome["status"], "Succeeded")
+		self.assertEqual(frappe.db.get_value("Booking", self.booking, "status"), "Expired")
+		self.assertEqual(frappe.db.count("Booking Slot", {"booking": self.booking}), 0)
+
+	def test_start_refuses_a_booking_that_is_no_longer_held(self):
+		release_booking(self.booking, "Expired")
+
+		with self.assertRaises(frappe.ValidationError):
+			payment.start(self.booking)
+
+	def test_release_booking_is_idempotent(self):
+		"""R6 in miniature: a failed payment and the expiry job can race for one hold."""
+		first = release_booking(self.booking, "Payment Failed")
+		second = release_booking(self.booking, "Expired")
+
+		self.assertEqual((first["released"], second["released"]), (1, 0))
+		self.assertEqual(second["status"], "Payment Failed")
 
 
 class TestLedgerRace(IntegrationTestCase):
@@ -401,7 +542,7 @@ class TestLedgerRace(IntegrationTestCase):
 		One booking, one ledger row, one clean refusal."""
 		arena = make_committed_arena("race")
 		self.addCleanup(drop_committed_arena, arena)
-		day = self._tomorrow()
+		day = tomorrow()
 
 		outcomes = self._race(arena, day)
 
@@ -426,9 +567,6 @@ class TestLedgerRace(IntegrationTestCase):
 		for thread in threads:
 			thread.join(timeout=60)
 		return outcomes
-
-	def _tomorrow(self):
-		return getdate(add_days(getdate(), 1))
 
 	def _book_past_the_precheck(self, resource: str, day, customer: str):
 		"""`claim` skips the courtesy pre-check, so the index itself has to do the refusing."""

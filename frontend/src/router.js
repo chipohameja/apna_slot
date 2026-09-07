@@ -32,6 +32,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/pay/:token',
+    name: 'Pay',
+    component: () => import('./pages/Pay.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/manage/onboarding',
     name: 'Onboarding',
     component: () => import('./pages/manage/Onboarding.vue'),

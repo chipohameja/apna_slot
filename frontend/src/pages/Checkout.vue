@@ -1,30 +1,35 @@
 <script setup>
-import { Badge, LoadingText, useCall } from 'frappe-ui'
-import { computed, onUnmounted, ref } from 'vue'
+import { Badge, Button, ErrorMessage, LoadingText, useCall } from 'frappe-ui'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 import PublicLayout from '../layouts/PublicLayout.vue'
+import { useCountdown } from '../lib/countdown'
+import { humanMessage } from '../lib/errors'
 import { clockTime, money } from '../lib/format'
 
+const STATUS_THEMES = { 'Pending Payment': 'orange', Confirmed: 'green' }
+
 const route = useRoute()
-const now = ref(Date.now())
-const ticker = setInterval(() => (now.value = Date.now()), 1000)
-onUnmounted(() => clearInterval(ticker))
 
 const booking = useCall({
   url: `/api/v2/document/Booking/${route.params.booking}`,
 })
 
+const pay = useCall({
+  url: '/api/v2/method/apna_slot.api.payment.start',
+  method: 'POST',
+  immediate: false,
+})
+
 const held = computed(() => booking.data?.status === 'Pending Payment')
-const secondsLeft = computed(() => {
-  if (!booking.data?.hold_expires_at) return 0
-  const deadline = Date.parse(`${booking.data.hold_expires_at.replace(' ', 'T')}Z`)
-  return Math.max(0, Math.round((deadline - now.value) / 1000))
-})
-const countdown = computed(() => {
-  const seconds = secondsLeft.value
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
-})
+const { secondsLeft, label } = useCountdown(() => booking.data?.hold_expires_at)
+
+async function payNow() {
+  const checkout = await pay.submit({ booking: route.params.booking })
+  // a real gateway hosts its own page off-site, so we follow its redirect rather than route
+  if (checkout) window.location.href = checkout.redirect_url
+}
 </script>
 
 <template>
@@ -34,13 +39,18 @@ const countdown = computed(() => {
 
       <template v-else-if="booking.data">
         <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-semibold text-ink-gray-9">Your hold</h1>
-          <Badge :theme="held ? 'orange' : 'gray'" :label="booking.data.status" />
+          <h1 class="text-2xl font-semibold text-ink-gray-9">
+            {{ held ? 'Your hold' : 'Your booking' }}
+          </h1>
+          <Badge
+            :theme="STATUS_THEMES[booking.data.status] ?? 'gray'"
+            :label="booking.data.status"
+          />
         </div>
 
         <p v-if="held && secondsLeft" class="text-p-base text-ink-gray-6">
           These slots are yours for another
-          <span class="font-medium text-ink-gray-9">{{ countdown }}</span
+          <span class="font-medium text-ink-gray-9">{{ label }}</span
           >.
         </p>
         <p v-else-if="held" class="text-p-base text-ink-gray-6">
@@ -71,7 +81,12 @@ const countdown = computed(() => {
           </div>
         </div>
 
-        <p class="text-p-sm text-ink-gray-5">Payment arrives with the mock gateway.</p>
+        <template v-if="held && secondsLeft">
+          <Button variant="solid" theme="gray" :loading="pay.loading" @click="payNow">
+            Pay {{ money(booking.data.total_amount, booking.data.currency) }}
+          </Button>
+          <ErrorMessage :message="humanMessage(pay.error)" />
+        </template>
       </template>
     </div>
   </PublicLayout>

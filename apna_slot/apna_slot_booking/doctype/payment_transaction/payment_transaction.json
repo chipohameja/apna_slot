@@ -1,0 +1,166 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "PAY-.YYYY.-.#####",
+ "creation": "2026-09-07 22:00:00.000000",
+ "description": "One attempt to pay for one booking. The gateway's verdict arrives on the callback and moves the booking with it.",
+ "doctype": "DocType",
+ "editable_grid": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "booking",
+  "publisher",
+  "column_break_identity",
+  "gateway",
+  "status",
+  "section_money",
+  "amount",
+  "column_break_money",
+  "currency",
+  "section_gateway_trail",
+  "checkout_token",
+  "gateway_reference",
+  "expires_at",
+  "column_break_trail",
+  "failure_reason",
+  "callback_payload"
+ ],
+ "fields": [
+  {
+   "fieldname": "booking",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Booking",
+   "options": "Booking",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fetch_from": "booking.publisher",
+   "fieldname": "publisher",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Publisher",
+   "options": "Publisher",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_identity",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Mock",
+   "fieldname": "gateway",
+   "fieldtype": "Data",
+   "label": "Gateway",
+   "read_only": 1
+  },
+  {
+   "default": "Created",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Created\nPending\nSucceeded\nFailed\nAbandoned\nRefunded",
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "section_money",
+   "fieldtype": "Section Break",
+   "label": "Money"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "options": "currency",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_money",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Snapshot from the booking",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_gateway_trail",
+   "fieldtype": "Section Break",
+   "label": "Gateway Trail"
+  },
+  {
+   "description": "A bearer credential: the /pay/:token path segment. Never logged, never shown in an error.",
+   "fieldname": "checkout_token",
+   "fieldtype": "Data",
+   "label": "Checkout Token",
+   "no_copy": 1,
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "gateway_reference",
+   "fieldtype": "Data",
+   "label": "Gateway Reference",
+   "read_only": 1
+  },
+  {
+   "description": "UTC. Mirrors the booking's hold_expires_at.",
+   "fieldname": "expires_at",
+   "fieldtype": "Datetime",
+   "label": "Expires At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_trail",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "failure_reason",
+   "fieldtype": "Small Text",
+   "label": "Failure Reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "callback_payload",
+   "fieldtype": "Code",
+   "label": "Callback Payload",
+   "options": "JSON",
+   "read_only": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-07 22:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Apna Slot Booking",
+ "name": "Payment Transaction",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1
+  },
+  {
+   "read": 1,
+   "role": "Apna Slot Publisher"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

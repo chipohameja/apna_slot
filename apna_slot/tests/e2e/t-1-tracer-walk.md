@@ -31,8 +31,12 @@ export AGENT_BROWSER_SESSION="$(agent-browser session id --scope worktree --pref
 | 12 | Sign up as `raj@example.com`, return, pick 19:00 | checkout shows one line, AED 250, and a countdown starting at 10:00 | T-d |
 | 13 | In a second browser, open the same venue | 19:00 reads **Booked** and is disabled — a hold is never revealed as a hold | T-d |
 | 14 | In that second browser, POST `booking.create` for 19:00 | HTTP **409**, message "19:00 on 8 Sep is no longer available. Pick another slot." | T-d |
-| 15 | Mock pay → **Succeed** | booking is `Confirmed` | T-e |
-| 16 | Open **My Bookings** | the booking is listed | T-f |
+| 15 | **Pay AED 250** | leaves the SPA for `/apnaslot/pay/:token` — a plain card reading "Mock Payment Gateway — no real money moves", the amount, "1 session · Turf A · from 8 Sep", and a countdown | T-e |
+| 16 | Mock pay → **Succeed** | back on checkout: heading reads *Your booking*, badge `Confirmed`, no pay button; the grid shows the slot **Booked** on reload | T-e |
+| 17 | Book another slot, pay → **Fail** | badge `Payment Failed`; the slot reads available again on the **next grid read**, not the next sweep | T-e |
+| 18 | Book a third slot, pay → **Abandon** | lands back on `/apnaslot/`; the booking stays `Pending Payment` with its ledger row, and only the timer may take it | T-e |
+| 19 | Reopen a settled `/pay/:token` | "This payment is already abandoned." — no buttons | T-e |
+| 20 | Open **My Bookings** | the booking is listed | T-f |
 
 ## Every run also checks
 
