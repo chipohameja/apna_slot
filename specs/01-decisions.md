@@ -352,6 +352,10 @@ reasonable, but the seam exists anyway and naming it makes the permission model 
 *Rejected:* three or more modules. Nothing else in the system is a genuine third concern; payments
 and refunds are ledger.
 
-*Open:* Q-1 in [PROGRESS.md](./PROGRESS.md) — this is settled on paper and gets confirmed against
-Frappe's fixtures and `modules.txt` in step T-a. If it does not survive contact, amend this entry
-rather than quietly collapsing the modules.
+*Mechanics:* multiple modules per app is ordinary Frappe — ERPNext ships more than twenty. A
+DocType's `module` lives in its JSON and maps to a folder (`Apna Slot Core` →
+`apna_slot/apna_slot_core/doctype/`), so both module folders and both `modules.txt` lines must exist
+before the first DocType is created; moving a DocType between modules later means editing its JSON
+and moving its folder. `hooks.py` fixtures select by doctype and export to `apna_slot/fixtures/` at
+app level, so modules do not affect them. Only the module *names* are still open — Q-1 in
+[PROGRESS.md](./PROGRESS.md), settled in step T-a.

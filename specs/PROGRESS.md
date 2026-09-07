@@ -159,5 +159,5 @@ Things the specs do not yet answer. Add here rather than deciding silently mid-b
 
 | # | Question | Blocks | Status |
 |---|---|---|---|
-| Q-1 | Does the two-module split (`Apna Slot Core` / `Apna Slot Booking`) survive contact with Frappe's fixtures and `modules.txt`, or does one module plus a documented exception to the 15-file rule read better? | T-a | open |
+| Q-1 | Module naming: keep `bench new-app`'s default `Apna Slot` as the core module and add only `Apna Slot Booking`, or rename to the symmetric `Apna Slot Core` / `Apna Slot Booking`? The rename is free at zero doctypes and annoying afterwards. | T-a | open |
 | Q-2 | Does the `Venue` permission query's `OR status = 'Published'` clause need a separate read path for guests, or does one condition serve both publisher and public listing? | T-b | open |
