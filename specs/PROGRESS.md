@@ -5,8 +5,9 @@ every phase. If this file and the code disagree, the code is right and this file
 
 **Status legend:** ☐ not started · ◐ in progress · ☑ done (tests + E2E green) · ⊘ deferred
 
-Last updated: 2026-09-07 · Phase T steps T-a and T-b done. R3 settled and R4 settled in full:
-signup, login, logout and the publisher onboarding form all work on session cookies.
+Last updated: 2026-09-07 · Phase T steps T-a, T-b and T-c done. R3 and R4 settled. Inventory
+exists and publishes: a publisher lists a venue with one resource, publishes it, and a guest sees
+it on the public list through `api.discovery` alone (D-34).
 
 ---
 
@@ -34,7 +35,7 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 |---|---|---|---|
 | R1 | The unique index is a sufficient double-booking guarantee | `test_concurrent_booking_same_slot_one_wins` | ☐ |
 | R2 | Wall-clock + denormalised UTC round-trips through `ZoneInfo` | `test_line_utc_matches_venue_timezone` | ☐ |
-| R3 | Permission hooks isolate tenants and fail closed | `test_query_conditions_fail_closed_for_non_member` | ☑ |
+| R3 | Permission hooks isolate tenants and fail closed | `test_query_conditions_fail_closed_for_non_member` | ☑ also proven on `Venue`: list, document read, and creating a resource under another tenant's venue |
 | R4 | Hand-scaffolded frappe-ui SPA builds, serves, authenticates on cookies | E2E journey T-1 | ☑ builds, serves, and authenticates on cookies; no console errors, light and dark, 375px |
 | R5 | Gateway interface + signed callback drives the state machine | `test_callback_confirms_booking` | ☐ |
 | R6 | The scheduled job releases abandoned holds | `test_expiry_job_releases_hold` | ☐ |
@@ -47,7 +48,7 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 |---|---|---|
 | T-a | `hooks.py`, two modules, `www/apnaslot.py`, route rules, Vite + Tailwind + frappe-ui scaffold serving one page | ☑ |
 | T-b | `Publisher` + `Publisher Member`, `permissions.py`, signup/session APIs, login + signup + onboarding screens | ☑ |
-| T-c | `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, venue list + bare create form | ☐ |
+| T-c | `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, `api.discovery.search_venues`, publisher venue list + bare create form, public list | ☑ |
 | T-d | `Booking Slot` + unique-index patch, `Booking` + `Booking Line`, `AvailabilityGrid`, `PriceResolver`, `create_booking`, day-grid screen | ☐ |
 | T-e | Gateway ABC, `MockGateway`, `Payment Transaction`, start/callback, checkout + mock-pay screens, `confirm_booking` | ☐ |
 | T-f | `expire_pending_bookings`, `release_booking`, My Bookings | ☐ |
@@ -188,3 +189,17 @@ Things learned while building that the phase documents now record.
   library's own idiom is `<Select class="w-full">` next to a `FormLabel`.
 - **T-b.** Running the suite needs `bench --site apnaslot.localhost set-config allow_tests true`
   once.
+- **T-c.** Frappe seeds a new document's defaults from *user defaults keyed by fieldname*, so any
+  field called `currency` arrives pre-filled with the site's default currency. A venue therefore
+  cannot inherit its publisher's currency with `self.currency = self.currency or ...` — the field is
+  never empty. It is claimed outright in `before_insert`.
+- **T-c.** `Document.insert()` runs `check_permission("create")` **before** `_validate_links()`
+  fetches `fetch_from` values, so a new `Bookable Resource` has no `publisher` yet when
+  `has_permission` fires. `permissions.publisher_of()` resolves the tenant through `venue` for
+  exactly that window; every later doctype that denormalises `publisher` inherits the fix.
+- **T-c.** frappe-ui composes a failed call's message as `${type}: ${message}`, so the raw
+  exception class name reaches the form. `frontend/src/lib/errors.js` strips it —
+  [02-conventions.md](./02-conventions.md) §7 asks the message to name the thing and the next
+  action, and "ValidationError:" is neither.
+- **T-c.** Tests must not assume an empty site. Two slug assertions passed alone and failed after
+  the E2E walk created venues of the same name; they now derive their own unique name.

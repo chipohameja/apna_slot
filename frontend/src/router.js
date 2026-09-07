@@ -26,6 +26,18 @@ const routes = [
     component: () => import('./pages/manage/Onboarding.vue'),
     meta: { requiresAuth: true, requiresNoPublisher: true },
   },
+  {
+    path: '/manage/venues',
+    name: 'Venues',
+    component: () => import('./pages/manage/Venues.vue'),
+    meta: { requiresAuth: true, requiresPublisher: true },
+  },
+  {
+    path: '/manage/venues/new',
+    name: 'NewVenue',
+    component: () => import('./pages/manage/NewVenue.vue'),
+    meta: { requiresAuth: true, requiresPublisher: true },
+  },
 ]
 
 const router = createRouter({
@@ -40,6 +52,7 @@ router.beforeEach(async (to) => {
     return { name: 'Login', query: { redirect: to.fullPath } }
   }
   if (to.meta.requiresNoPublisher && session.publishers.length) return { name: 'Home' }
+  if (to.meta.requiresPublisher && !session.publishers.length) return { name: 'Onboarding' }
 })
 
 export default router

@@ -48,7 +48,7 @@ pages (Phases 3 and 5).
 | `longitude` | Float | | precision 8; same |
 | **Locale** | | | |
 | `timezone` | Data | | **reqd**, defaults from publisher, IANA validated |
-| `currency` | Link | Currency | **reqd**, defaults from publisher; read-only once any booking exists |
+| `currency` | Link | Currency | **reqd**, claimed from the publisher on insert — Frappe seeds any field named `currency` from the site default, so defaulting is not enough; read-only once any booking exists |
 | **Contact** | | | |
 | `contact_phone` | Data | Phone | |
 | `contact_email` | Data | Email | |

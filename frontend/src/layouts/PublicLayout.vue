@@ -13,9 +13,12 @@ const accountOptions = [{ label: 'Log out', icon: 'lucide-log-out', onClick: log
 <template>
   <div class="flex min-h-screen flex-col bg-surface-white">
     <header
-      class="flex items-center justify-between border-b border-outline-gray-1 px-6 py-3"
+      class="flex items-center justify-between gap-2 border-b border-outline-gray-1 px-4 py-3 sm:px-6"
     >
-      <router-link to="/" class="text-lg font-semibold text-ink-gray-9">
+      <router-link
+        to="/"
+        class="whitespace-nowrap text-lg font-semibold text-ink-gray-9"
+      >
         Apna Slot
       </router-link>
 
@@ -27,9 +30,13 @@ const accountOptions = [{ label: 'Log out', icon: 'lucide-log-out', onClick: log
       </div>
 
       <div v-else class="flex items-center gap-2">
-        <span v-if="publisher" class="text-p-sm text-ink-gray-6">
+        <Button
+          v-if="publisher"
+          variant="ghost"
+          @click="router.push('/manage/venues')"
+        >
           {{ publisher.publisher_name }}
-        </span>
+        </Button>
         <Button v-else variant="subtle" @click="router.push('/manage/onboarding')">
           List your venue
         </Button>

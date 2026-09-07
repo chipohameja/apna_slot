@@ -1,0 +1,141 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "VEN-.#####",
+ "creation": "2026-09-07 20:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "venue_name",
+  "publisher",
+  "slug",
+  "status",
+  "address_line_1",
+  "city",
+  "country",
+  "timezone",
+  "currency",
+  "max_advance_days",
+  "min_lead_minutes"
+ ],
+ "fields": [
+  {
+   "fieldname": "venue_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Venue Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "publisher",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Publisher",
+   "options": "Publisher",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "description": "The public URL segment; generated once and never changed",
+   "fieldname": "slug",
+   "fieldtype": "Data",
+   "label": "Slug",
+   "no_copy": 1,
+   "read_only": 1,
+   "set_only_once": 1,
+   "unique": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Draft\nPublished\nUnlisted\nSuspended\nUnder Review",
+   "reqd": 1
+  },
+  {
+   "fieldname": "address_line_1",
+   "fieldtype": "Data",
+   "label": "Address Line 1",
+   "reqd": 1
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "City",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Link",
+   "label": "Country",
+   "options": "Country",
+   "reqd": 1
+  },
+  {
+   "description": "IANA timezone identifier, e.g. Asia/Dubai. Defaults from the publisher.",
+   "fieldname": "timezone",
+   "fieldtype": "Data",
+   "label": "Timezone",
+   "reqd": 1
+  },
+  {
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "default": "60",
+   "description": "How far ahead a customer may book, in days",
+   "fieldname": "max_advance_days",
+   "fieldtype": "Int",
+   "label": "Max Advance Days",
+   "non_negative": 1
+  },
+  {
+   "default": "60",
+   "description": "How close to a slot a customer may still book it, in minutes",
+   "fieldname": "min_lead_minutes",
+   "fieldtype": "Int",
+   "label": "Min Lead Minutes",
+   "non_negative": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-07 20:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Apna Slot Core",
+ "name": "Venue",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "Apna Slot Publisher",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

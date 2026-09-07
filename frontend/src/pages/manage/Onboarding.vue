@@ -11,6 +11,7 @@ import {
 import { reactive } from 'vue'
 
 import PublicLayout from '../../layouts/PublicLayout.vue'
+import { humanMessage } from '../../lib/errors'
 import { landOn, session } from '../../session'
 
 const CURRENCIES = ['AED', 'INR', 'USD', 'EUR', 'GBP']
@@ -61,7 +62,7 @@ const createPublisher = useCall({
         <FormLabel label="Timezone" required />
         <Combobox v-model="form.timezone" :options="timezones" class="w-full" />
       </div>
-      <ErrorMessage :message="createPublisher.error?.message" />
+      <ErrorMessage :message="humanMessage(createPublisher.error)" />
       <Button
         variant="solid"
         theme="gray"

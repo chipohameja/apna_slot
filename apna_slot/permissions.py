@@ -38,7 +38,16 @@ def tenant_query(user: str | None = None, doctype: str | None = None) -> str:
 
 
 def tenant_has_permission(doc, ptype: str | None = None, user: str | None = None) -> bool:
-	return is_member_of(doc.get("publisher"), user)
+	return is_member_of(publisher_of(doc), user)
+
+
+def publisher_of(doc) -> str | None:
+	"""The tenant a document belongs to. Frappe checks create permission before
+	`fetch_from` denormalises `publisher`, so a new child of a venue resolves through it."""
+	if doc.get("publisher"):
+		return doc.get("publisher")
+	venue = doc.get("venue")
+	return frappe.db.get_value("Venue", venue, "publisher") if venue else None
 
 
 def scope_condition(column: str, user: str | None = None) -> str:

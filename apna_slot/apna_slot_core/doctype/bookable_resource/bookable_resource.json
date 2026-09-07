@@ -1,0 +1,137 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "RES-.#####",
+ "creation": "2026-09-07 20:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "resource_name",
+  "venue",
+  "publisher",
+  "status",
+  "slot_duration_minutes",
+  "max_slots_per_booking",
+  "max_dates_per_booking",
+  "base_price",
+  "currency",
+  "weekly_schedule"
+ ],
+ "fields": [
+  {
+   "fieldname": "resource_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Resource Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "venue",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Venue",
+   "options": "Venue",
+   "reqd": 1,
+   "set_only_once": 1
+  },
+  {
+   "description": "Denormalised from the venue so tenant queries never need a join",
+   "fetch_from": "venue.publisher",
+   "fieldname": "publisher",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Publisher",
+   "options": "Publisher",
+   "read_only": 1
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "Active\nInactive",
+   "reqd": 1
+  },
+  {
+   "default": "60",
+   "fieldname": "slot_duration_minutes",
+   "fieldtype": "Select",
+   "label": "Slot Duration Minutes",
+   "options": "30\n45\n60\n90\n120",
+   "reqd": 1
+  },
+  {
+   "default": "4",
+   "description": "Most slots a customer may take on one date in one booking",
+   "fieldname": "max_slots_per_booking",
+   "fieldtype": "Int",
+   "label": "Max Slots Per Booking",
+   "non_negative": 1
+  },
+  {
+   "default": "8",
+   "description": "Most distinct dates one booking may span",
+   "fieldname": "max_dates_per_booking",
+   "fieldtype": "Int",
+   "label": "Max Dates Per Booking",
+   "non_negative": 1
+  },
+  {
+   "description": "Price of one slot when no rule matches",
+   "fieldname": "base_price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Base Price",
+   "options": "currency",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "venue.currency",
+   "fieldname": "currency",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Currency",
+   "read_only": 1
+  },
+  {
+   "fieldname": "weekly_schedule",
+   "fieldtype": "Table",
+   "label": "Weekly Schedule",
+   "options": "Resource Schedule Row",
+   "reqd": 1
+  }
+ ],
+ "links": [],
+ "modified": "2026-09-07 20:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Apna Slot Core",
+ "name": "Bookable Resource",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "read": 1,
+   "role": "Apna Slot Publisher",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
