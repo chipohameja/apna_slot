@@ -4,11 +4,10 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 import PublicLayout from '../layouts/PublicLayout.vue'
+import { STATUS_THEMES } from '../lib/bookingStatus'
 import { useCountdown } from '../lib/countdown'
 import { humanMessage } from '../lib/errors'
 import { clockTime, money } from '../lib/format'
-
-const STATUS_THEMES = { 'Pending Payment': 'orange', Confirmed: 'green' }
 
 const route = useRoute()
 

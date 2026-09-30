@@ -7,7 +7,10 @@ import { logOut, session } from '../session'
 
 const router = useRouter()
 const publisher = computed(() => session.publishers[0])
-const accountOptions = [{ label: 'Log out', icon: 'lucide-log-out', onClick: logOut }]
+const accountOptions = [
+  { label: 'My bookings', icon: 'lucide-calendar-check', onClick: () => router.push('/bookings') },
+  { label: 'Log out', icon: 'lucide-log-out', onClick: logOut },
+]
 </script>
 
 <template>

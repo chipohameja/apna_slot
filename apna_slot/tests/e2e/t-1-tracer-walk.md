@@ -36,7 +36,8 @@ export AGENT_BROWSER_SESSION="$(agent-browser session id --scope worktree --pref
 | 17 | Book another slot, pay → **Fail** | badge `Payment Failed`; the slot reads available again on the **next grid read**, not the next sweep | T-e |
 | 18 | Book a third slot, pay → **Abandon** | lands back on `/apnaslot/`; the booking stays `Pending Payment` with its ledger row, and only the timer may take it | T-e |
 | 19 | Reopen a settled `/pay/:token` | "This payment is already abandoned." — no buttons | T-e |
-| 20 | Open **My Bookings** | the booking is listed | T-f |
+| 20 | Account menu → **My bookings** | `/apnaslot/bookings` lists the confirmed booking: venue · resource, date and time, AED 250, badge `Confirmed`; a customer with none sees "You have no bookings yet." and **Find a venue** | T-f |
+| 21 | Wait one sweep after step 18's hold lapses | that booking reads `Expired` in My Bookings and its slot is available on the grid | T-f |
 
 ## Every run also checks
 

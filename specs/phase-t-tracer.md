@@ -200,6 +200,10 @@ Each step is committed separately and leaves the app runnable.
    [phase-4-mock-payments.md](./phase-4-mock-payments.md) §3 already owns that half.
 6. **T-f — The timer.** `expire_pending_bookings`, My Bookings. *Proves R6.*
 
+   Each lapsed hold is released under its own savepoint, so one bad record is logged and skipped
+   rather than stalling the sweep. My Bookings is a flat list over `booking.list_mine`, one row per
+   booking naming its earliest line, reached from the account menu; Phase 5 adds the tabs.
+
 If a step cannot be completed as specified, **stop and amend the specs before continuing** — a
 tracer bullet that lands somewhere unexpected is information, not a defect to work around.
 
@@ -228,7 +232,7 @@ tracer bullet that lands somewhere unexpected is information, not a defect to wo
 12. A callback with a tampered signature is rejected and the booking is untouched.
 13. The unique index exists in `information_schema`.
 
-## 7. Tests — `apna_slot/tests/test_tracer.py`
+## 7. Tests — `apna_slot/tests/test_tracer.py` and `test_expiry.py`
 
 | Test | Bet | Asserts |
 |---|---|---|
@@ -254,8 +258,14 @@ tracer bullet that lands somewhere unexpected is information, not a defect to wo
 | `test_abandonment_leaves_the_hold_alone` | R5 | still `Pending Payment`, ledger row intact |
 | `test_success_after_expiry_does_not_resurrect_the_booking` | R5 | transaction `Succeeded`, booking stays `Expired` |
 | `test_release_booking_is_idempotent` | R6 | called twice, one result, no raise |
-| `test_expiry_job_releases_hold` | R6 | `Expired`, zero ledger rows |
-| `test_expiry_job_ignores_confirmed` | R6 | |
+| `test_expiry_job_releases_hold` | R6 | `Expired`, zero ledger rows, the grid reads `available` |
+| `test_expiry_job_leaves_a_live_hold_alone` | R6 | a hold inside its 10 minutes survives the sweep |
+| `test_expiry_job_ignores_confirmed` | R6 | still `Confirmed`, ledger row kept |
+| `test_expiry_job_survives_a_bad_record` | R6 | one failing release is logged; the next hold still expires |
+| `test_list_mine_shows_only_the_callers_bookings` | — | another customer's hold is absent; the row names its line |
+
+The R6 tests live in `test_expiry.py`, on their own committed arena, to keep `test_tracer.py`
+within a readable size.
 
 **E2E — journey T-1**, driven by agent-browser per [03-testing.md](./03-testing.md): the full
 acceptance walk in §2, plus a second browser context proving the slot is gone.
@@ -263,7 +273,7 @@ acceptance walk in §2, plus a second browser context proving the slot is gone.
 Run:
 
 ```bash
-bench --site apnaslot.localhost run-tests --app apna_slot --module apna_slot.tests.test_tracer
+bench --site apnaslot.localhost run-tests --app apna_slot
 ```
 
 ---

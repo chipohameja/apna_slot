@@ -38,6 +38,12 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/bookings',
+    name: 'Bookings',
+    component: () => import('./pages/Bookings.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/manage/onboarding',
     name: 'Onboarding',
     component: () => import('./pages/manage/Onboarding.vue'),

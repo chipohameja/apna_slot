@@ -33,3 +33,10 @@ has_permission = {
 fixtures = [
 	{"dt": "Role", "filters": [["role_name", "in", ["Apna Slot Customer", "Apna Slot Publisher"]]]},
 ]
+
+# --- Scheduler ---------------------------------------------------------
+scheduler_events = {
+	"cron": {
+		"*/2 * * * *": ["apna_slot.jobs.expire_pending_bookings"],
+	},
+}

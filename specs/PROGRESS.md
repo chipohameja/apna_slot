@@ -5,10 +5,9 @@ every phase. If this file and the code disagree, the code is right and this file
 
 **Status legend:** ☐ not started · ◐ in progress · ☑ done (tests + E2E green) · ⊘ deferred
 
-Last updated: 2026-09-07 · Phase T steps T-a to T-e done. **R1, R2, R3, R4 and R5 settled.**
-Money moves: a customer books a slot through the SPA, is redirected to the mock gateway, and a
-signed callback confirms the booking, releases it on failure, or leaves it alone on abandonment.
-Only the timer (T-f) is missing.
+Last updated: 2026-09-30 · Phase T steps T-a to T-f done. **All six bets settled.** The timer
+releases abandoned holds every two minutes, and a customer sees what they booked under My Bookings.
+Only T-x — the whole-phase suite and the three E2E journeys end to end — remains.
 
 ---
 
@@ -39,7 +38,7 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 | R3 | Permission hooks isolate tenants and fail closed | `test_query_conditions_fail_closed_for_non_member` | ☑ also proven on `Venue`: list, document read, and creating a resource under another tenant's venue |
 | R4 | Hand-scaffolded frappe-ui SPA builds, serves, authenticates on cookies | E2E journey T-1 | ☑ builds, serves, and authenticates on cookies; no console errors, light and dark, 375px |
 | R5 | Gateway interface + signed callback drives the state machine | `test_callback_confirms_booking` | ☑ succeed confirms, fail releases, abandon waits for the timer; a forged signature is refused and a repeated callback changes nothing |
-| R6 | The scheduled job releases abandoned holds | `test_expiry_job_releases_hold` | ☐ |
+| R6 | The scheduled job releases abandoned holds | `test_expiry_job_releases_hold` | ☑ also seen on the live scheduler: a hold abandoned in the T-e walk went `Expired` with zero ledger rows on the first tick after `migrate` |
 
 ---
 
@@ -52,7 +51,7 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 | T-c | `Venue`, `Bookable Resource`, `Resource Schedule Row`, publish, `api.discovery.search_venues`, publisher venue list + bare create form, public list | ☑ |
 | T-d | `Booking Slot` + unique-index patch, `Booking` + `Booking Line`, `AvailabilityGrid`, `PriceResolver`, `create_booking`, `get_venue`, venue page with day grid, checkout shell | ☑ |
 | T-e | Gateway ABC, `MockGateway`, `Payment Transaction`, start/callback, checkout + mock-pay screens, `confirm_booking`, `release_booking` | ☑ |
-| T-f | `expire_pending_bookings`, My Bookings | ☐ |
+| T-f | `expire_pending_bookings`, My Bookings | ☑ |
 | T-x | `tests/test_tracer.py` green; E2E journeys T-1, T-2, T-3 pass | ☐ |
 
 ## Phase 0 — Foundations
@@ -143,7 +142,7 @@ that introduces it is done.
 | Invariant | Introduced | Test | Status |
 |---|---|---|---|
 | I-1 Exclusivity | T | `test_concurrent_booking_same_slot_one_wins` | ☑ |
-| I-2 Ledger correspondence | T | `test_expiry_job_releases_hold`, `test_completion_keeps_ledger_rows` | ☐ |
+| I-2 Ledger correspondence | T | `test_expiry_job_releases_hold`, `test_completion_keeps_ledger_rows` | ◐ release half proven in T; completion half lands with Phase 3's job |
 | I-3 Booking shape | 3 | `test_duplicate_line_in_request_rejected`, cap tests | ☐ |
 | I-4 Schedule containment | 3 | `test_grid_marks_closed_whole_day` | ☐ |
 | I-5 Booking window | 3 | `test_series_beyond_advance_window_rejected` | ☐ |
@@ -238,3 +237,11 @@ Things learned while building that the phase documents now record.
 - **T-e.** `frappe.utils.verified_command.get_secret()` is the site secret the HMAC signs with —
   no new key, no new config. `simulate` computes the signature and calls `callback` in process, so
   the button exercises the production verification path rather than a shortcut around it.
+- **T-f.** `frappe.get_all` validates `order_by` strictly: `first_start_utc is null` is refused as
+  an invalid field format. `list_mine` orders `first_start_utc desc` instead, which in MariaDB sinks
+  released holds (no active line, no instant) to the bottom for free.
+- **T-f.** The expiry job gives each hold its own savepoint rather than its own commit, so the test
+  transaction stays intact and the scheduler's end-of-job commit still lands every release that
+  succeeded. A hold that fails is rolled back to its savepoint and logged against the booking.
+- **T-f.** `test_tracer.py` had reached ~590 lines, so the R6 tests live in `tests/test_expiry.py`
+  on their own committed arena. The phase's run command is now the whole app.
