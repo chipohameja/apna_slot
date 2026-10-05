@@ -8,6 +8,8 @@ every phase. If this file and the code disagree, the code is right and this file
 Last updated: 2026-10-05 · **Phase T done.** All six bets settled, the whole-app suite is green
 (49 tests), and journeys T-1, T-2 and T-3 pass end to end on the live site, scheduler included.
 Next: Phase 0.
+**Phase E done** (2026-10-05): the Playwright suite (11 tests) is green locally, twice in a row on
+the same database.
 
 ---
 
@@ -16,7 +18,7 @@ Next: Phase 0.
 | Phase | Document | Status | Ships |
 |---|---|---|---|
 | **T** | [phase-t-tracer.md](./phase-t-tracer.md) | ☑ | Walking skeleton: signup → venue → one slot → mock pay → confirmed, with the unique index |
-| **E** | [phase-e-playwright.md](./phase-e-playwright.md) | ◐ | Playwright E2E suite + UI Tests CI, set up as Hive's |
+| **E** | [phase-e-playwright.md](./phase-e-playwright.md) | ☑ | Playwright E2E suite + UI Tests CI, set up as Hive's |
 | 0 | [phase-0-foundations.md](./phase-0-foundations.md) | ☐ | Taxonomies, team management, full permission matrix |
 | 1 | [phase-1-listing.md](./phase-1-listing.md) | ☐ | Full listing surface, closures, schedule builder |
 | 2 | [phase-2-pricing.md](./phase-2-pricing.md) | ☐ | Price rules, resolver, pricing calendar |
@@ -59,10 +61,10 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 
 | Step | Deliverable | Status |
 |---|---|---|
-| E-a | Root `package.json`, `playwright.config.ts`, `e2e/` skeleton, helpers, auth setups | ☐ |
-| E-b | `apna_slot/e2e_seed.py` | ☐ |
-| E-c | `discovery`, `venues`, `booking`, `race` specs green locally | ☐ |
-| E-d | `.github/workflows/ui-tests.yml`, README, 03-testing | ☐ |
+| E-a | Root `package.json`, `playwright.config.ts`, `e2e/` skeleton, helpers, auth setups | ☑ |
+| E-b | `apna_slot/e2e_seed.py` | ☑ |
+| E-c | `discovery`, `venues`, `booking`, `race` specs green locally | ☑ |
+| E-d | `.github/workflows/ui-tests.yml`, README, 03-testing | ☑ written; first GitHub run comes with the PR |
 
 ## Phase 0 — Foundations
 
@@ -187,7 +189,7 @@ Things learned while building that the phase documents now record.
   path, which fails `migrate` with `ModuleNotFoundError` until the cache is cleared and the row
   removed. Do the module split before the first DocType exists, as D-33 says.
 - **T-a.** Dark mode is `data-theme="dark"` on `<html>`, not a `dark` class — see
-  [03-testing.md](./03-testing.md) §4. Screenshot *after* the attribute flip settles: the theme
+  [03-testing.md](./03-testing.md) §5. Screenshot *after* the attribute flip settles: the theme
   transition is animated, and a shot taken immediately catches unreadable mid-transition colours.
 - **T-b.** Roles cannot be created by the DocType JSON that references them. They ship as
   `apna_slot/fixtures/role.json`, which `migrate` imports after the doctype sync; that ordering is
@@ -259,5 +261,9 @@ Things learned while building that the phase documents now record.
   raw "Publisher Name must be unique" (now `Publisher._check_name_is_free` names it), and the pay
   card, checkout and My Bookings printed ISO dates where the spec reads "from 8 Sep" (now
   `shortDate` in `frontend/src/lib/format.js`, matching the server's `d MMM`).
+- **E.** `bench build` runs a root `package.json`'s `build` script, so adding Hive's root
+  `package.json` is also what makes CI's `bench build` build the SPA.
+- **E.** The seed makes Administrator the owner of *E2E Sports*, so on a dev site Administrator now
+  sees the publisher header in the SPA.
 - **T-x.** On a bench whose `default_site` is another site, every journey runs against
   `bench --site apnaslot.localhost serve --port 8001` — see [03-testing.md](./03-testing.md) §3.

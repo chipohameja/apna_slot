@@ -1,7 +1,7 @@
 # Journey T-2 — two customers, one slot
 
 Two isolated browser sessions race for one slot through the real grid, per
-[03-testing.md](../../../specs/03-testing.md) §4. B's grid is loaded **before** A takes the slot, so
+[03-testing.md](../../../specs/03-testing.md) §5. B's grid is loaded **before** A takes the slot, so
 B clicks a button that still reads available — the refusal comes from the ledger, not the UI.
 
 Serve this site on its own port first — see the `bench serve` note in [T-1](./t-1-tracer-walk.md);

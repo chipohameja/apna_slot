@@ -85,7 +85,7 @@ Body covers, briefly:
 - **Verification** — the `run-tests` command and its result; the E2E journey ids that passed.
 - **Deferred** — anything moved to a later phase, with the phase.
 
-Do not open a PR until [03-testing.md](./03-testing.md) §5 *Definition of done* holds in full.
+Do not open a PR until [03-testing.md](./03-testing.md) §6 *Definition of done* holds in full.
 
 ---
 

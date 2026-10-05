@@ -18,7 +18,8 @@ the difference is listed in §4 and nowhere else.
 | `playwright.config.ts` | same | `setup` → `chromium` (Administrator) and `customer-setup` → `customer` (Hive: `client-setup` → `client`); one worker, retries in CI, trace on retry |
 | `e2e/tsconfig.json` | same | |
 | `e2e/no-markup-locators.mjs` | same | Fails a spec that keys off CSS classes, `:has-text()` or tag selectors |
-| `e2e/helpers/{auth,frappe,app,ui,index}.ts` | same | Login, REST helpers over `127.0.0.1` + `Host`, the suite's `test`, frappe-ui locators |
+| `e2e/helpers/{auth,frappe,index}.ts` | same | Login; REST helpers over `127.0.0.1` + `Host` |
+| `e2e/helpers/{app,ui}.ts` | same, rewritten | The suite's `test` + `GUEST` state; SPA locators and flows (`holdSlot`, `payWith`, `selectOption`) |
 | `e2e/helpers/hive.ts` | `e2e/helpers/apna_slot.ts` | Domain helpers: test venue, booking, payment, cleanup |
 | `e2e/pages/index.ts` | same | Page objects, added as needed |
 | `e2e/tests/auth.setup.ts`, `client-auth.setup.ts` | `auth.setup.ts`, `customer-auth.setup.ts` | Session + CSRF saved to `e2e/.auth/` |
@@ -47,8 +48,8 @@ Each ports a slice of a T journey. Ids in brackets are the journey steps.
 |---|---|---|
 | `discovery.spec.ts` | guest | Seeded venue listed "from AED 250 per slot · 1 resource" [T-1·9]; 4 slots tomorrow [T-1·10]; slot click redirects to login [T-1·11] |
 | `venues.spec.ts` | chromium | New venue form creates a **Draft** [T-1·5]; a short closing time names the row [T-1·6]; **Publish** flips the row in place [T-1·8] |
-| `booking.spec.ts` | customer | Hold → checkout → mock **Succeed** → `Confirmed`, grid reads **Booked**, My bookings lists it [T-1·12,15,16,20]; **Fail** frees the slot [T-1·17]; **Abandon** keeps the hold [T-1·18]; a settled link shows no buttons [T-1·19] |
-| `race.spec.ts` | customer | A holds 19:00; B's `booking.create` gets 409 with the slot named; B's grid reads **Booked** [T-2] |
+| `booking.customer.spec.ts` | customer | Hold → checkout → mock **Succeed** → `Confirmed`, grid reads **Booked**, My bookings lists it [T-1·12,15,16,20]; **Fail** frees the slot [T-1·17]; **Abandon** keeps the hold [T-1·18]; a settled link shows no buttons [T-1·19] |
+| `race.customer.spec.ts` | customer | A holds 19:00; B (a second browser, as Administrator) sees **Booked** and its `booking.create` gets 409 naming the slot; A has exactly one booking [T-2] |
 
 T-3 (expiry) stays an agent-browser journey: it waits on the scheduler, and the suite never sleeps
 (rule 4). The job itself is covered by `test_expiry_job_releases_hold`.
@@ -61,6 +62,16 @@ T-3 (expiry) stays an agent-browser journey: it waits on the scheduler, and the 
 - **CSRF.** Hive reads `frappe.csrf_token` from `/app`; a customer is a Website User and has no
   desk, so both setups read the SPA's boot value `window.csrf_token` from `/apnaslot`.
 - **Branch.** CI triggers on pushes to `main`, this repo's default branch.
+- **Project split.** Hive picks its client spec by name (`/client-experience/`); here any
+  `*.customer.spec.ts` runs as the customer, and the `customer` project also depends on `setup`
+  because its specs create venues through the Administrator's REST helpers.
+- **`app.ts`.** Hive's fixture suppresses an overdue dialog through localStorage. Apna Slot has no
+  such overlay, so `test` is the base `test`, kept as the single import point; `GUEST` and
+  `tomorrowISO()` live there instead.
+- **One `data-testid`.** `venue-row` on the publisher's venue list: a row is a plain `div` with
+  no role to filter by.
+- **Cleanup unlists rather than deletes.** A test venue's bookings are ledger history; unlisting
+  keeps the home page from growing every run.
 
 ## 5. Build order
 

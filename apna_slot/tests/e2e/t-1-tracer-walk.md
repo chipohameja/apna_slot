@@ -1,7 +1,7 @@
 # Journey T-1 — the tracer walk
 
 The acceptance walk from [phase-t-tracer.md](../../../specs/phase-t-tracer.md) §2, driven with
-agent-browser per [03-testing.md](../../../specs/03-testing.md) §4. Steps 1–9 land in **T-c**;
+agent-browser per [03-testing.md](../../../specs/03-testing.md) §5. Steps 1–9 land in **T-c**;
 10 onwards land with the steps that build them and are listed here so the journey is one file.
 
 ```bash
