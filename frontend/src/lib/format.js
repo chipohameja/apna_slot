@@ -13,3 +13,10 @@ export function clockTime(value) {
 export function isoDate(date) {
   return date.toISOString().slice(0, 10)
 }
+
+// "6 Oct", matching the server's `formatdate(date, "d MMM")` in refusal messages
+export function shortDate(isoDay) {
+  return new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(
+    new Date(`${isoDay}T00:00:00Z`),
+  )
+}

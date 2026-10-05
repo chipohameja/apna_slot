@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { useCountdown } from '../lib/countdown'
 import { humanMessage } from '../lib/errors'
-import { money } from '../lib/format'
+import { money, shortDate } from '../lib/format'
 
 // a real gateway takes a moment to answer, and the customer should see that it does
 const SETTLING_MS = 1500
@@ -30,7 +30,7 @@ const open = computed(() => ['Created', 'Pending'].includes(checkout.data?.statu
 const summary = computed(() => {
   const lines = checkout.data?.lines ?? []
   const sessions = lines.length === 1 ? '1 session' : `${lines.length} sessions`
-  return `${sessions} · ${checkout.data.resource_name} · from ${lines[0]?.line_date}`
+  return `${sessions} · ${checkout.data.resource_name} · from ${shortDate(lines[0]?.line_date)}`
 })
 
 async function decide(outcome) {

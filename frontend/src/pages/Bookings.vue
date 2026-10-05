@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 
 import PublicLayout from '../layouts/PublicLayout.vue'
 import { STATUS_THEMES } from '../lib/bookingStatus'
-import { clockTime, money } from '../lib/format'
+import { clockTime, money, shortDate } from '../lib/format'
 
 const router = useRouter()
 const bookings = useCall({
@@ -36,7 +36,7 @@ const bookings = useCall({
               {{ booking.venue_name }} · {{ booking.resource_name }}
             </p>
             <p class="text-p-sm text-ink-gray-5">
-              {{ booking.line_date }} · {{ clockTime(booking.start_time) }}–{{
+              {{ shortDate(booking.line_date) }} · {{ clockTime(booking.start_time) }}–{{
                 clockTime(booking.end_time)
               }}
             </p>

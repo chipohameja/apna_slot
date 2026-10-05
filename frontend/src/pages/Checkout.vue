@@ -7,7 +7,7 @@ import PublicLayout from '../layouts/PublicLayout.vue'
 import { STATUS_THEMES } from '../lib/bookingStatus'
 import { useCountdown } from '../lib/countdown'
 import { humanMessage } from '../lib/errors'
-import { clockTime, money } from '../lib/format'
+import { clockTime, money, shortDate } from '../lib/format'
 
 const route = useRoute()
 
@@ -64,7 +64,7 @@ async function payNow() {
           >
             <div>
               <p class="text-p-base text-ink-gray-8">
-                {{ line.line_date }} · {{ clockTime(line.start_time) }}–{{ clockTime(line.end_time) }}
+                {{ shortDate(line.line_date) }} · {{ clockTime(line.start_time) }}–{{ clockTime(line.end_time) }}
               </p>
               <p class="text-p-xs text-ink-gray-5">{{ line.price_rule }}</p>
             </div>
