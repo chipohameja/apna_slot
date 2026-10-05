@@ -16,6 +16,7 @@ Next: Phase 0.
 | Phase | Document | Status | Ships |
 |---|---|---|---|
 | **T** | [phase-t-tracer.md](./phase-t-tracer.md) | ☑ | Walking skeleton: signup → venue → one slot → mock pay → confirmed, with the unique index |
+| **E** | [phase-e-playwright.md](./phase-e-playwright.md) | ◐ | Playwright E2E suite + UI Tests CI, set up as Hive's |
 | 0 | [phase-0-foundations.md](./phase-0-foundations.md) | ☐ | Taxonomies, team management, full permission matrix |
 | 1 | [phase-1-listing.md](./phase-1-listing.md) | ☐ | Full listing surface, closures, schedule builder |
 | 2 | [phase-2-pricing.md](./phase-2-pricing.md) | ☐ | Price rules, resolver, pricing calendar |
@@ -53,6 +54,15 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 | T-e | Gateway ABC, `MockGateway`, `Payment Transaction`, start/callback, checkout + mock-pay screens, `confirm_booking`, `release_booking` | ☑ |
 | T-f | `expire_pending_bookings`, My Bookings | ☑ |
 | T-x | `tests/test_tracer.py` green; E2E journeys T-1, T-2, T-3 pass | ☑ |
+
+## Phase E — Playwright E2E suite
+
+| Step | Deliverable | Status |
+|---|---|---|
+| E-a | Root `package.json`, `playwright.config.ts`, `e2e/` skeleton, helpers, auth setups | ☐ |
+| E-b | `apna_slot/e2e_seed.py` | ☐ |
+| E-c | `discovery`, `venues`, `booking`, `race` specs green locally | ☐ |
+| E-d | `.github/workflows/ui-tests.yml`, README, 03-testing | ☐ |
 
 ## Phase 0 — Foundations
 
