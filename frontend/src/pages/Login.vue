@@ -52,7 +52,9 @@ async function submit() {
       </Button>
       <p class="text-p-sm text-ink-gray-6">
         New here?
-        <router-link to="/signup" class="text-ink-gray-9 underline">
+        <router-link
+          :to="{ path: '/signup', query: route.query }"
+          class="text-ink-gray-9 underline">
           Create an account
         </router-link>
       </p>

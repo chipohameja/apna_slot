@@ -56,7 +56,12 @@ const signUp = useCall({
       </Button>
       <p class="text-p-sm text-ink-gray-6">
         Already have an account?
-        <router-link to="/login" class="text-ink-gray-9 underline">Log in</router-link>
+        <router-link
+          :to="{ path: '/login', query: route.query }"
+          class="text-ink-gray-9 underline"
+        >
+          Log in
+        </router-link>
       </p>
     </form>
   </PublicLayout>

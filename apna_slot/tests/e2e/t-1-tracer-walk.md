@@ -28,7 +28,7 @@ export AGENT_BROWSER_SESSION="$(agent-browser session id --scope worktree --pref
 |---|---|---|---|
 | 10 | As a guest, open the venue from the home list | the day grid shows exactly 4 slots for tomorrow, each at AED 250 | T-d |
 | 11 | Click a slot while signed out | redirected to `/login?redirect=/venues/...` | T-d |
-| 12 | Sign up as `raj@example.com`, navigate back to the venue, pick 19:00 — the login → signup link drops `?redirect`; the round trip is journey 5-2 | checkout shows one line, AED 250, and a countdown starting at 10:00 | T-d |
+| 12 | Follow **Create an account**, sign up as `raj@example.com`, pick 19:00 | lands back on the venue (the signup link keeps `?redirect`); checkout shows one line, AED 250, and a countdown starting at 10:00 | T-d |
 | 13 | In a second browser, open the same venue | 19:00 reads **Booked** and is disabled — a hold is never revealed as a hold | T-d |
 | 14 | In that second browser, POST `booking.create` for 19:00 | HTTP **409**, message "19:00 on 8 Sep is no longer available. Pick another slot." | T-d |
 | 15 | **Pay AED 250** | leaves the SPA for `/apnaslot/pay/:token` — a plain card reading "Mock Payment Gateway — no real money moves", the amount, "1 session · Turf A · from 8 Sep", and a countdown; checkout and My Bookings write dates the same way | T-e |
