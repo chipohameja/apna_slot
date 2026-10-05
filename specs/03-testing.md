@@ -1,7 +1,8 @@
 # Testing Strategy
 
-CLAUDE.md: *"Always write tests, and make sure they work"* and *"Use agent-browser to test e2e."*
-Since Phase E the journeys also run unattended as Playwright specs, in CI on every pull request.
+CLAUDE.md: *"Always write tests, and make sure they work"* and *"Use Playwright to test e2e."*
+The Playwright specs run in CI on every pull request; the agent-browser journeys remain for
+exploratory walks.
 This document says which kind of test proves which kind of claim, and gives the runnable commands.
 
 Each phase document already carries its own test table. This file is the layer above them: the
