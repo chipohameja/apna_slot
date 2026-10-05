@@ -62,6 +62,13 @@ class TestTracer(IntegrationTestCase):
 		self.assertIn(PUBLISHER_ROLE, frappe.get_roles(owner))
 		self.assertEqual(get_session_user()["publishers"][0]["name"], publisher)
 
+	def test_taken_business_name_is_refused_by_name(self):
+		make_publisher(make_customer("taken.tracer@example.com", "Fay First"), "Tracer Taken Name")
+		second = make_customer("latecomer.tracer@example.com", "Sid Second")
+
+		with self.assertRaisesRegex(frappe.ValidationError, "Tracer Taken Name is already listed"):
+			make_publisher(second, "Tracer Taken Name")
+
 	def test_query_conditions_scope_to_membership(self):
 		"""I-8: a member's list is exactly their own tenant."""
 		owner_a = make_customer("a.tracer@example.com", "Ann A")

@@ -12,6 +12,7 @@ PUBLISHER_ROLE = "Apna Slot Publisher"
 class Publisher(Document):
 	def validate(self):
 		validate_timezone(self.timezone)
+		self._check_name_is_free()
 		self._check_members_are_unique()
 		self._check_has_an_owner()
 
@@ -36,6 +37,11 @@ class Publisher(Document):
 
 	def _rows_for(self, user: str) -> list:
 		return [row for row in self.members if row.user == user]
+
+	def _check_name_is_free(self):
+		taken = frappe.db.exists("Publisher", {"publisher_name": self.publisher_name, "name": ("!=", self.name)})
+		if taken:
+			frappe.throw(_("{0} is already listed. Choose another business name.").format(self.publisher_name))
 
 	def _check_members_are_unique(self):
 		users = [row.user for row in self.members]
