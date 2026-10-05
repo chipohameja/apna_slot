@@ -267,8 +267,14 @@ tracer bullet that lands somewhere unexpected is information, not a defect to wo
 The R6 tests live in `test_expiry.py`, on their own committed arena, to keep `test_tracer.py`
 within a readable size.
 
-**E2E — journey T-1**, driven by agent-browser per [03-testing.md](./03-testing.md): the full
-acceptance walk in §2, plus a second browser context proving the slot is gone.
+**E2E — journeys T-1, T-2, T-3**, driven by agent-browser per [03-testing.md](./03-testing.md),
+each a script in `apna_slot/tests/e2e/`:
+
+- `t-1-tracer-walk.md` — the full acceptance walk in §2, plus a second browser context proving the
+  slot is gone.
+- `t-2-same-slot-race.md` — B's grid is loaded before A takes the slot, so B clicks a button that
+  still reads available and the refusal comes from the ledger, not the UI.
+- `t-3-abandoned-hold.md` — the one journey that waits on real time: the hold, then one sweep.
 
 Run:
 

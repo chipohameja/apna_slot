@@ -5,9 +5,9 @@ every phase. If this file and the code disagree, the code is right and this file
 
 **Status legend:** ☐ not started · ◐ in progress · ☑ done (tests + E2E green) · ⊘ deferred
 
-Last updated: 2026-09-30 · Phase T steps T-a to T-f done. **All six bets settled.** The timer
-releases abandoned holds every two minutes, and a customer sees what they booked under My Bookings.
-Only T-x — the whole-phase suite and the three E2E journeys end to end — remains.
+Last updated: 2026-10-05 · **Phase T done.** All six bets settled, the whole-app suite is green
+(49 tests), and journeys T-1, T-2 and T-3 pass end to end on the live site, scheduler included.
+Next: Phase 0.
 
 ---
 
@@ -15,7 +15,7 @@ Only T-x — the whole-phase suite and the three E2E journeys end to end — rem
 
 | Phase | Document | Status | Ships |
 |---|---|---|---|
-| **T** | [phase-t-tracer.md](./phase-t-tracer.md) | ◐ | Walking skeleton: signup → venue → one slot → mock pay → confirmed, with the unique index |
+| **T** | [phase-t-tracer.md](./phase-t-tracer.md) | ☑ | Walking skeleton: signup → venue → one slot → mock pay → confirmed, with the unique index |
 | 0 | [phase-0-foundations.md](./phase-0-foundations.md) | ☐ | Taxonomies, team management, full permission matrix |
 | 1 | [phase-1-listing.md](./phase-1-listing.md) | ☐ | Full listing surface, closures, schedule builder |
 | 2 | [phase-2-pricing.md](./phase-2-pricing.md) | ☐ | Price rules, resolver, pricing calendar |
@@ -52,7 +52,7 @@ The six risks Phase T exists to retire. None is settled until its test is green.
 | T-d | `Booking Slot` + unique-index patch, `Booking` + `Booking Line`, `AvailabilityGrid`, `PriceResolver`, `create_booking`, `get_venue`, venue page with day grid, checkout shell | ☑ |
 | T-e | Gateway ABC, `MockGateway`, `Payment Transaction`, start/callback, checkout + mock-pay screens, `confirm_booking`, `release_booking` | ☑ |
 | T-f | `expire_pending_bookings`, My Bookings | ☑ |
-| T-x | `tests/test_tracer.py` green; E2E journeys T-1, T-2, T-3 pass | ☐ |
+| T-x | `tests/test_tracer.py` green; E2E journeys T-1, T-2, T-3 pass | ☑ |
 
 ## Phase 0 — Foundations
 
@@ -245,3 +245,9 @@ Things learned while building that the phase documents now record.
   succeeded. A hold that fails is rolled back to its savepoint and logged against the booking.
 - **T-f.** `test_tracer.py` had reached ~590 lines, so the R6 tests live in `tests/test_expiry.py`
   on their own committed arena. The phase's run command is now the whole app.
+- **T-x.** The walk found two defects the suite could not: a taken business name surfaced Frappe's
+  raw "Publisher Name must be unique" (now `Publisher._check_name_is_free` names it), and the pay
+  card, checkout and My Bookings printed ISO dates where the spec reads "from 8 Sep" (now
+  `shortDate` in `frontend/src/lib/format.js`, matching the server's `d MMM`).
+- **T-x.** On a bench whose `default_site` is another site, every journey runs against
+  `bench --site apnaslot.localhost serve --port 8001` — see [03-testing.md](./03-testing.md) §3.

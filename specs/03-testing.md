@@ -82,6 +82,14 @@ cd apps/apna_slot/frontend && yarn test
 
 `bench start` must be running for E2E. Start it in the background only if it is not already up.
 
+If `common_site_config.json` sets `default_site`, `bench serve` pins itself to that site and
+ignores the `Host` header: every `/apnaslot` route 404s, in that site's language. Leave the shared
+config alone and serve this site on its own port:
+
+```bash
+bench --site apnaslot.localhost serve --port 8001
+```
+
 The suite needs two site-config keys, set once:
 
 ```bash
