@@ -1,8 +1,11 @@
 # Journey T-3 — an abandoned hold expires
 
 A hold the customer walks away from is released by `expire_pending_bookings` alone, per
-[03-testing.md](../../../specs/03-testing.md) §4. This is the one journey that waits on real time:
+[03-testing.md](../../../specs/03-testing.md) §5. This is the one journey that waits on real time:
 the 10-minute hold plus at most one 2-minute sweep. The unit tests move `hold_expires_at` instead.
+
+Serve this site on its own port first — see the `bench serve` note in [T-1](./t-1-tracer-walk.md);
+where `:8000` 404s, swap it for `:8001` in every URL below.
 
 Needs `bench schedule` and a worker running, and the scheduler enabled for the site
 (`bench --site apnaslot.localhost scheduler status`).

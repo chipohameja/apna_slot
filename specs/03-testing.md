@@ -1,6 +1,8 @@
 # Testing Strategy
 
-CLAUDE.md: *"Always write tests, and make sure they work"* and *"Use agent-browser to test e2e."*
+CLAUDE.md: *"Always write tests, and make sure they work"* and *"Use Playwright to test e2e."*
+The Playwright specs run in CI on every pull request; the agent-browser journeys remain for
+exploratory walks.
 This document says which kind of test proves which kind of claim, and gives the runnable commands.
 
 Each phase document already carries its own test table. This file is the layer above them: the
@@ -15,7 +17,7 @@ shape of the suite, the rules that keep it honest, and the browser journeys.
 | **Unit** | Pure logic: price resolution, slot generation, series expansion, timezone conversion, selection state | `tests/test_<phase>.py` (Python), `frontend/src/lib/*.test.js` (JS) | `run-tests` / `vitest` |
 | **Integration** | Controllers, permissions, APIs, jobs — everything that touches the database | `tests/test_<phase>.py` on `FrappeTestCase` | `run-tests` |
 | **Concurrency** | I-1 only. Two real connections racing for one slot | `tests/test_tracer.py`, `tests/test_phase3.py` | `run-tests` |
-| **E2E** | The user's journey through the real SPA against the real site | `tests/e2e/*.md` journeys, driven by agent-browser | agent-browser |
+| **E2E** | The user's journey through the real SPA against the real site | `e2e/tests/*.spec.ts` (regression), `tests/e2e/*.md` journeys (exploratory) | Playwright / agent-browser |
 
 The pyramid is deliberately bottom-heavy. The E2E layer is for **journeys**, not for coverage: it
 proves the screens are wired to the APIs, not that the pricing ladder is correct.
@@ -104,7 +106,30 @@ matters: without it the value is stored as a string and the comparison raises a 
 
 ---
 
-## 4. End-to-end with agent-browser
+## 4. End-to-end with Playwright
+
+Set up as Hive's (`apps/bwh_hive`) — see [phase-e-playwright.md](./phase-e-playwright.md) for the
+file-by-file map. `.github/workflows/ui-tests.yml` runs it on every pull request.
+
+```bash
+npm install && npx playwright install chromium                         # once
+bench --site apnaslot.localhost execute apna_slot.e2e_seed.setup_e2e_data  # once per site
+npm run test:e2e                                                       # lint locators, then run
+```
+
+The defaults point at `apnaslot.localhost:8000`; for the `--port 8001` server in §3, export
+`BASE_URL`, `SITE_HOST`, `API_BASE` and `FRAPPE_PASSWORD=frappeadmin`.
+
+- **Projects.** `chromium` runs as Administrator, who owns the seeded publisher; specs named
+  `*.customer.spec.ts` run in the `customer` project as `customer@example.com`. A guest spec sets
+  `test.use({ storageState: GUEST })`.
+- **Locators.** Roles and labels first, a `data-testid` the app owns where frappe-ui publishes
+  nothing. `e2e/no-markup-locators.mjs` fails CSS classes, `:has-text()` and tag selectors.
+- **Data.** A spec that takes slots creates its own salted venue with `createTestVenue` and unlists
+  it in `afterAll`, so a retry or a rerun never finds its slot gone.
+- **Time.** Nothing waits on the scheduler. T-3's expiry stays an agent-browser journey.
+
+## 5. End-to-end with agent-browser
 
 ### Setup, once per run
 
@@ -176,13 +201,13 @@ unless the spec itself was wrong, in which case amend the spec first
 
 ---
 
-## 5. Definition of done for a phase
+## 6. Definition of done for a phase
 
 A phase is not done until all five hold:
 
 1. Every test in the phase's test table exists and passes.
 2. Every acceptance criterion in the phase document has been observed to hold.
-3. Every E2E journey for the phase passes, in light and dark.
+3. Every E2E journey for the phase passes, in light and dark, and `npm run test:e2e` is green.
 4. `bench --site apnaslot.localhost run-tests --app apna_slot` is green — **all** phases, not just
    the new one.
 5. [PROGRESS.md](./PROGRESS.md) is updated and the phase document reconciled against what was

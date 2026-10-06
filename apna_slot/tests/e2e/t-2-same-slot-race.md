@@ -1,8 +1,11 @@
 # Journey T-2 — two customers, one slot
 
 Two isolated browser sessions race for one slot through the real grid, per
-[03-testing.md](../../../specs/03-testing.md) §4. B's grid is loaded **before** A takes the slot, so
+[03-testing.md](../../../specs/03-testing.md) §5. B's grid is loaded **before** A takes the slot, so
 B clicks a button that still reads available — the refusal comes from the ledger, not the UI.
+
+Serve this site on its own port first — see the `bench serve` note in [T-1](./t-1-tracer-walk.md);
+where `:8000` 404s, swap it for `:8001` in every URL below.
 
 Needs a published venue with free slots tomorrow (journey T-1 steps 1–9 leave one). Salt the emails
 per run; the site keeps every earlier walk.
@@ -18,7 +21,7 @@ agent-browser --session apnaslot-b open http://apnaslot.localhost:8000/apnaslot/
 | 2 | A clicks 20:00 | A lands on `/apnaslot/checkout/:booking`, `Pending Payment` |
 | 3 | B, without reloading, clicks its stale 20:00 button | B stays on the venue page and reads "20:00 on *d Mon* is no longer available. Pick another slot." |
 | 4 | Read B's grid | it refreshed itself: 20:00 reads **Booked** and is disabled |
-| 5 | From B, `POST apna_slot.api.booking.create` for the same slot | HTTP **409**, the same message |
+| 5 | From B, `POST apna_slot.api.booking.create` with `{resource, slot_date, start_time}` for the same slot | HTTP **409**, the same message |
 | 6 | Query the ledger for that resource and date | exactly one `Booking Slot` row at 20:00, owned by A's booking; B has no booking |
 
 ```sql
